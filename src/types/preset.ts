@@ -1,6 +1,6 @@
 export type SynthParameters = {
   filter: number;
-  mood:number;
+  mood: number;
   movement: number;
   space: number;
   expression: number;
