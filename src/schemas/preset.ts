@@ -1,6 +1,6 @@
-import { z } from 'zod'
+import { z } from 'zod';
 
-const parameterSchema = z.number().min(0).max(1)
+const parameterSchema = z.number().min(0).max(1);
 
 export const synthParametersSchema = z.strictObject({
   filter: parameterSchema,
@@ -12,10 +12,10 @@ export const synthParametersSchema = z.strictObject({
   decay: parameterSchema,
   sustain: parameterSchema,
   release: parameterSchema,
-})
+});
 
 export const createPresetInputSchema = z.strictObject({
   name: z.string().trim().min(1).max(100),
   schemaVersion: z.literal(1),
   parameters: synthParametersSchema,
-})
+});

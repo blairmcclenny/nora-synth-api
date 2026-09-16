@@ -9,12 +9,29 @@ app.get('/health', (c) => {
   return c.json({ service: 'nora-synth-api', status: 'ok' });
 });
 
-app.post('/v1/presets/validate', 
-  zValidator('json', createPresetInputSchema),
+app.post(
+  '/v1/presets/validate',
+  zValidator('json', createPresetInputSchema, (result, c) => {
+    if (!result.success) {
+      return c.json(
+        {
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Preset contains invalid values.',
+            details: result.error.issues.map((issue) => ({
+              path: issue.path.join('.'),
+              message: issue.message,
+            })),
+          },
+        },
+        400,
+      );
+    }
+  }),
   (c) => {
-    const preset = c.req.valid('json')
-    return c.json({ data: preset })
-  }
-)
+    const preset = c.req.valid('json');
+    return c.json({ data: preset });
+  },
+);
 
 export default app;
