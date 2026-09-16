@@ -1,17 +1,6 @@
-export type SynthParameters = {
-  filter: number;
-  mood: number;
-  movement: number;
-  space: number;
-  expression: number;
-  attack: number;
-  decay: number;
-  sustain: number;
-  release: number;
-}
+import type { z } from 'zod'
+import { createPresetInputSchema, synthParametersSchema } from '../schemas/preset.js';
 
-export type CreatePresetInput = {
-  name: string;
-  schemaVersion: 1;
-  parameters: SynthParameters;
-}
+export type SynthParameters = z.infer<typeof synthParametersSchema>
+
+export type CreatePresetInput = z.infer<typeof createPresetInputSchema>

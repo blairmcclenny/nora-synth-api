@@ -13,3 +13,9 @@ export const synthParametersSchema = z.strictObject({
   sustain: parameterSchema,
   release: parameterSchema,
 })
+
+export const createPresetInputSchema = z.strictObject({
+  name: z.string().trim().min(1).max(100),
+  schemaVersion: z.literal(1),
+  parameters: synthParametersSchema,
+})
