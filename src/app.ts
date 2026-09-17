@@ -1,7 +1,7 @@
 import { zValidator } from '@hono/zod-validator';
 import { Hono } from 'hono';
-import { createPresetInputSchema } from './schemas/preset.js';
 import { HTTPException } from 'hono/http-exception';
+import { createPresetInputSchema } from './schemas/preset.js';
 
 const app = new Hono();
 
@@ -38,25 +38,31 @@ app.post(
 app.onError((err, c) => {
   if (err instanceof HTTPException) {
     if (err.status === 400) {
-      return c.json({
+      return c.json(
+        {
           error: {
-          code: "INVALID_JSON",
-          message: "Request body must contain valid JSON."
-        }
-      }, 400)
+            code: 'INVALID_JSON',
+            message: 'Request body must contain valid JSON.',
+          },
+        },
+        400,
+      );
     }
-    
-    return err.getResponse()
+
+    return err.getResponse();
   }
 
-  console.error(err)
-  
-  return c.json({
-    error: {
-      code: 'INTERNAL_ERROR',
-      message: 'An unexpected error occurred.'
-    }
-  }, 500)
-})
+  console.error(err);
+
+  return c.json(
+    {
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'An unexpected error occurred.',
+      },
+    },
+    500,
+  );
+});
 
 export default app;
