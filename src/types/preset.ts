@@ -7,3 +7,9 @@ import {
 export type SynthParameters = z.infer<typeof synthParametersSchema>;
 
 export type CreatePresetInput = z.infer<typeof createPresetInputSchema>;
+
+export type Preset = CreatePresetInput & {
+  id: string;
+  createdAt: string;
+  updatedAt: string;
+};
