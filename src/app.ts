@@ -2,6 +2,8 @@ import { zValidator } from '@hono/zod-validator';
 import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import { createPresetInputSchema } from './schemas/preset.js';
+import { createPreset, getPresetById } from './repositories/presets.js';
+import z from 'zod';
 
 const app = new Hono();
 
@@ -10,8 +12,41 @@ app.get('/health', (c) => {
   return c.json({ service: 'nora-synth-api', status: 'ok' });
 });
 
+app.get('/v1/presets/:id', async (c) => {
+  const id = c.req.param('id');
+  const result = z.uuid().safeParse(id);
+
+  if (!result.success) {
+    return c.json(
+      {
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Preset ID must be a valid UUID.',
+        },
+      },
+      400,
+    );
+  }
+
+  const preset = await getPresetById(result.data);
+
+  if (!preset) {
+    return c.json(
+      {
+        error: {
+          code: 'NOT_FOUND',
+          message: 'Preset not found.',
+        },
+      },
+      404,
+    );
+  }
+
+  return c.json(preset, 200);
+});
+
 app.post(
-  '/v1/presets/validate',
+  '/v1/presets',
   zValidator('json', createPresetInputSchema, (result, c) => {
     if (!result.success) {
       return c.json(
@@ -29,9 +64,12 @@ app.post(
       );
     }
   }),
-  (c) => {
-    const preset = c.req.valid('json');
-    return c.json({ data: preset });
+  async (c) => {
+    const input = c.req.valid('json');
+    const preset = await createPreset(input);
+
+    c.header('Location', `/v1/presets/${preset.id}`);
+    return c.json(preset, 201);
   },
 );
 
