@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { CreatePresetInput, Preset } from '../types/preset.js';
+import type { CreatePresetInput, Preset, PresetList } from '../types/preset.js';
 import { pool } from '../db/pool.js';
 
 type PresetRow = {
@@ -98,7 +98,7 @@ export async function createPreset(input: CreatePresetInput): Promise<Preset> {
 export async function listPresets(
   limit: number,
   offset: number,
-): Promise<Preset[]> {
+): Promise<PresetList> {
   const results = await pool.query<PresetRow>(
     `
     SELECT * FROM presets
@@ -108,5 +108,14 @@ export async function listPresets(
     [limit, offset],
   );
 
-  return results.rows.map(mapPresetRow);
+  const countResult = await pool.query<{ total: string }>(`
+    SELECT COUNT(*) AS total FROM presets;
+  `);
+
+  const total = Number(countResult.rows[0].total);
+
+  return {
+    items: results.rows.map(mapPresetRow),
+    total,
+  };
 }
