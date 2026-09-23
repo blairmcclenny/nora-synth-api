@@ -1,8 +1,8 @@
 import { zValidator } from '@hono/zod-validator';
 import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
-import { createPresetInputSchema } from './schemas/preset.js';
-import { createPreset, getPresetById } from './repositories/presets.js';
+import { createPresetInputSchema, presetListInputSchema } from './schemas/preset.js';
+import { createPreset, getPresetById, listPresets } from './repositories/presets.js';
 import z from 'zod';
 
 const app = new Hono();
@@ -44,6 +44,30 @@ app.get('/v1/presets/:id', async (c) => {
 
   return c.json(preset, 200);
 });
+
+app.get('/v1/presets', 
+  zValidator('query', presetListInputSchema, (result, c) => {
+    if (!result.success) {
+      return c.json(
+        {
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Invalid limit or offset values.',
+            details: result.error.issues.map((issue) => ({
+              path: issue.path.join('.'),
+              message: issue.message,
+            }))
+          }
+        }, 400
+      )
+    }
+  }),
+  async (c) => {
+  const { limit, offset } = c.req.valid('query')
+  const { items, total } = await listPresets(limit, offset)
+
+  return c.json({ items, limit, offset, total }, 200)
+})
 
 app.post(
   '/v1/presets',
