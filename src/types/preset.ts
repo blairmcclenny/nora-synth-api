@@ -13,3 +13,8 @@ export type Preset = CreatePresetInput & {
   createdAt: string;
   updatedAt: string;
 };
+
+export type PresetList = {
+  items: Preset[];
+  total: number;
+};
