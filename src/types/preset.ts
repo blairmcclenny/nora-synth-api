@@ -15,6 +15,6 @@ export type Preset = CreatePresetInput & {
 };
 
 export type PresetList = {
-  items: Preset[],
-  total: number,
-}
+  items: Preset[];
+  total: number;
+};

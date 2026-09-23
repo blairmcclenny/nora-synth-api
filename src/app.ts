@@ -1,7 +1,10 @@
 import { zValidator } from '@hono/zod-validator';
 import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
-import { createPresetInputSchema, presetListInputSchema } from './schemas/preset.js';
+import {
+  createPresetInputSchema,
+  presetListInputSchema,
+} from './schemas/preset.js';
 import { createPreset, getPresetById, listPresets } from './repositories/presets.js';
 import z from 'zod';
 
@@ -45,7 +48,8 @@ app.get('/v1/presets/:id', async (c) => {
   return c.json(preset, 200);
 });
 
-app.get('/v1/presets', 
+app.get(
+  '/v1/presets',
   zValidator('query', presetListInputSchema, (result, c) => {
     if (!result.success) {
       return c.json(
@@ -56,18 +60,20 @@ app.get('/v1/presets',
             details: result.error.issues.map((issue) => ({
               path: issue.path.join('.'),
               message: issue.message,
-            }))
-          }
-        }, 400
-      )
+            })),
+          },
+        },
+        400,
+      );
     }
   }),
   async (c) => {
-  const { limit, offset } = c.req.valid('query')
-  const { items, total } = await listPresets(limit, offset)
+    const { limit, offset } = c.req.valid('query');
+    const { items, total } = await listPresets(limit, offset);
 
-  return c.json({ items, limit, offset, total }, 200)
-})
+    return c.json({ items, limit, offset, total }, 200);
+  },
+);
 
 app.post(
   '/v1/presets',

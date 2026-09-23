@@ -110,12 +110,12 @@ export async function listPresets(
 
   const countResult = await pool.query<{ total: string }>(`
     SELECT COUNT(*) AS total FROM presets;
-  `)
+  `);
 
-  const total = Number(countResult.rows[0].total)
+  const total = Number(countResult.rows[0].total);
 
   return {
     items: results.rows.map(mapPresetRow),
-    total
+    total,
   };
 }
