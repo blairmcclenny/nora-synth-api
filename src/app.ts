@@ -5,7 +5,12 @@ import {
   createPresetInputSchema,
   presetListInputSchema,
 } from './schemas/preset.js';
-import { createPreset, getPresetById, listPresets } from './repositories/presets.js';
+import {
+  createPreset,
+  deletePresetById,
+  getPresetById,
+  listPresets,
+} from './repositories/presets.js';
 import z from 'zod';
 
 const app = new Hono();
@@ -102,6 +107,38 @@ app.post(
     return c.json(preset, 201);
   },
 );
+
+app.delete('/v1/presets/:id', async (c) => {
+  const result = z.uuid().safeParse(c.req.param('id'));
+
+  if (!result.success) {
+    return c.json(
+      {
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Preset ID must be a valid UUID.',
+        },
+      },
+      400,
+    );
+  }
+
+  const deleted = await deletePresetById(result.data);
+
+  if (!deleted) {
+    return c.json(
+      {
+        error: {
+          code: 'NOT_FOUND',
+          message: 'Preset not found.',
+        },
+      },
+      404,
+    );
+  }
+
+  return c.body(null, 204);
+});
 
 app.onError((err, c) => {
   if (err instanceof HTTPException) {
