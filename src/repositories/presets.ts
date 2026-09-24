@@ -119,3 +119,16 @@ export async function listPresets(
     total,
   };
 }
+
+export async function deletePresetById(id: string): Promise<boolean> {
+  const result = await pool.query(
+    `
+    DELETE FROM presets
+    WHERE id = $1
+    RETURNING id;
+    `,
+    [id],
+  );
+
+  return result.rows.length > 0;
+}
