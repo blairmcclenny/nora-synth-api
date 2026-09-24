@@ -1,6 +1,6 @@
 # Nora Synth API
 
-A standalone Hono API for saving, listing, and recalling synth presets, built with TypeScript, Node.js, Zod, and PostgreSQL.
+A standalone Hono API for saving, listing, recalling, and deleting synth presets, built with TypeScript, Node.js, Zod, and PostgreSQL.
 
 ## Local setup
 
@@ -47,8 +47,9 @@ Expect HTTP 200 and `{"service":"nora-synth-api","status":"ok"}`. The health rou
 | POST | `/v1/presets` | Save a complete preset | 201, full preset and `Location` header |
 | GET | `/v1/presets` | List presets with pagination | 200, `{ items, limit, offset, total }` |
 | GET | `/v1/presets/:id` | Retrieve a preset by UUID | 200, full preset |
+| DELETE | `/v1/presets/:id` | Delete a preset by UUID | 204, no response body |
 
-Update and delete endpoints are not implemented yet. The current prototype has a single shared preset library and no authentication.
+The update endpoint is not implemented yet. The current prototype has a single shared preset library and no authentication.
 
 ### Save a preset
 
@@ -96,6 +97,16 @@ curl -i "http://localhost:3000/v1/presets/PRESET_ID"
 
 Invalid preset data, IDs, or pagination values return HTTP 400 with a `VALIDATION_ERROR` JSON error envelope. Malformed JSON returns 400 with `INVALID_JSON`; a valid but missing preset ID returns 404 with `NOT_FOUND`. Unexpected server errors return 500 with `INTERNAL_ERROR` without exposing internal details.
 
+### Delete a preset
+
+Replace `PRESET_ID` with the UUID of a preset you want to delete:
+
+```sh
+curl -i -X DELETE "http://localhost:3000/v1/presets/PRESET_ID"
+```
+
+A successful deletion returns HTTP 204 with no response body. Recalling that preset or deleting the same ID again returns 404 with `NOT_FOUND`. An invalid UUID returns 400 with `VALIDATION_ERROR`. Errors use the same `{ "error": { "code": "...", "message": "..." } }` envelope as the other routes.
+
 ## Commands and checks
 
 | Command | Purpose |
@@ -118,7 +129,17 @@ Check database connectivity with:
 npx tsx --env-file=.env src/db/check.ts
 ```
 
-`src/db/check-create.ts` is a manual script that inserts a sample preset. `src/db/check-read.ts` reads a hard-coded UUID; edit that ID before using it. These are development checks, not an automated test suite. There is no `npm test` command yet.
+`src/db/check-create.ts` is a manual script that inserts a sample preset. `src/db/check-read.ts` reads a hard-coded UUID; edit that ID before using it.
+
+To check the repository's delete behavior directly, with PostgreSQL running:
+
+```sh
+npx tsx --env-file=.env src/db/check-delete.ts
+```
+
+This script creates a disposable preset, asserts that deletion succeeds, confirms the preset can no longer be retrieved, and asserts that deleting it again returns `false`. It prints `Delete checks passed` when all assertions pass. It calls the repository directly, so the HTTP server does not need to be running.
+
+These are development checks, not an automated test suite. There is no `npm test` command yet.
 
 ## Project structure
 
@@ -142,7 +163,8 @@ src/
 - [x] Connect PostgreSQL and write the first migration.
 - [x] Save a preset with POST and retrieve it with GET.
 - [x] List presets with validated pagination and a total count.
-- [ ] Update and delete presets.
+- [x] Delete presets by ID with validation and missing-preset handling.
+- [ ] Update presets.
 - [ ] Add focused automated tests for validation and persistence.
 - [ ] Connect the synth's save, list, and recall controls.
 - [ ] Decide authentication, ownership, and deployment before remote hosting.
