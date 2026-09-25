@@ -1,6 +1,6 @@
 # Nora Synth API
 
-A standalone Hono API for saving, listing, recalling, and deleting synth presets, built with TypeScript, Node.js, Zod, and PostgreSQL.
+A standalone Hono API for saving, listing, recalling, renaming, and deleting synth presets, built with TypeScript, Node.js, Zod, and PostgreSQL.
 
 ## Local setup
 
@@ -47,9 +47,10 @@ Expect HTTP 200 and `{"service":"nora-synth-api","status":"ok"}`. The health rou
 | POST | `/v1/presets` | Save a complete preset | 201, full preset and `Location` header |
 | GET | `/v1/presets` | List presets with pagination | 200, `{ items, limit, offset, total }` |
 | GET | `/v1/presets/:id` | Retrieve a preset by UUID | 200, full preset |
+| PATCH | `/v1/presets/:id` | Rename a preset by UUID | 200, full preset |
 | DELETE | `/v1/presets/:id` | Delete a preset by UUID | 204, no response body |
 
-The update endpoint is not implemented yet. The current prototype has a single shared preset library and no authentication.
+Renaming is supported; updating a complete parameter snapshot with PUT is not implemented yet. The current prototype has a single shared preset library and no authentication.
 
 ### Save a preset
 
@@ -96,6 +97,20 @@ curl -i "http://localhost:3000/v1/presets/PRESET_ID"
 ```
 
 Invalid preset data, IDs, or pagination values return HTTP 400 with a `VALIDATION_ERROR` JSON error envelope. Malformed JSON returns 400 with `INVALID_JSON`; a valid but missing preset ID returns 404 with `NOT_FOUND`. Unexpected server errors return 500 with `INTERNAL_ERROR` without exposing internal details.
+
+### Rename a preset
+
+Replace `PRESET_ID` with an existing preset's UUID:
+
+```sh
+curl -i -X PATCH "http://localhost:3000/v1/presets/PRESET_ID" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Soft Motion II"}'
+```
+
+The body must contain only `name`, which is trimmed and must contain 1–100 characters. A successful rename returns HTTP 200 with the full preset and updates `updatedAt`. The ID, creation timestamp, schema version, and synth parameters remain unchanged.
+
+Invalid names, extra fields, or invalid UUIDs return 400 with `VALIDATION_ERROR`. Body validation errors include a `details` array with field paths and messages. Malformed JSON returns 400 with `INVALID_JSON`. A valid but missing preset ID returns 404 with `NOT_FOUND`; renaming does not create a preset.
 
 ### Delete a preset
 
@@ -164,7 +179,8 @@ src/
 - [x] Save a preset with POST and retrieve it with GET.
 - [x] List presets with validated pagination and a total count.
 - [x] Delete presets by ID with validation and missing-preset handling.
-- [ ] Update presets.
+- [x] Rename presets with PATCH, validation, and missing-preset handling.
+- [ ] Update complete preset parameter snapshots with PUT.
 - [ ] Add focused automated tests for validation and persistence.
 - [ ] Connect the synth's save, list, and recall controls.
 - [ ] Decide authentication, ownership, and deployment before remote hosting.

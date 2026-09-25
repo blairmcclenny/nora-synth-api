@@ -132,3 +132,26 @@ export async function deletePresetById(id: string): Promise<boolean> {
 
   return result.rows.length > 0;
 }
+
+export async function renamePresetById(
+  id: string,
+  name: string,
+): Promise<Preset | undefined> {
+  const result = await pool.query<PresetRow>(
+    `
+    UPDATE presets
+    SET name = $1, updated_at = NOW()
+    WHERE id = $2
+    RETURNING *;
+    `,
+    [name, id],
+  );
+
+  const row = result.rows[0];
+
+  if (!row) {
+    return undefined;
+  }
+
+  return mapPresetRow(row);
+}

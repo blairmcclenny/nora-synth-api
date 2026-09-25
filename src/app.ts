@@ -4,12 +4,14 @@ import { HTTPException } from 'hono/http-exception';
 import {
   createPresetInputSchema,
   presetListInputSchema,
+  renamePresetInputSchema,
 } from './schemas/preset.js';
 import {
   createPreset,
   deletePresetById,
   getPresetById,
   listPresets,
+  renamePresetById,
 } from './repositories/presets.js';
 import z from 'zod';
 
@@ -139,6 +141,59 @@ app.delete('/v1/presets/:id', async (c) => {
 
   return c.body(null, 204);
 });
+
+app.patch(
+  '/v1/presets/:id',
+  zValidator('json', renamePresetInputSchema, (result, c) => {
+    if (!result.success) {
+      return c.json(
+        {
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Preset contains invalid values.',
+            details: result.error.issues.map((issue) => ({
+              path: issue.path.join('.'),
+              message: issue.message,
+            })),
+          },
+        },
+        400,
+      );
+    }
+  }),
+  async (c) => {
+    const result = z.uuid().safeParse(c.req.param('id'));
+
+    if (!result.success) {
+      return c.json(
+        {
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Preset ID must be a valid UUID.',
+          },
+        },
+        400,
+      );
+    }
+
+    const { name } = c.req.valid('json');
+    const preset = await renamePresetById(result.data, name);
+
+    if (!preset) {
+      return c.json(
+        {
+          error: {
+            code: 'NOT_FOUND',
+            message: 'Preset not found.',
+          },
+        },
+        404,
+      );
+    }
+
+    return c.json(preset, 200);
+  },
+);
 
 app.onError((err, c) => {
   if (err instanceof HTTPException) {
