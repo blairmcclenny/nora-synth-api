@@ -155,3 +155,51 @@ export async function renamePresetById(
 
   return mapPresetRow(row);
 }
+
+export async function updatePresetById(
+  id: string,
+  input: CreatePresetInput,
+): Promise<Preset | undefined> {
+  const result = await pool.query<PresetRow>(
+    `
+    UPDATE presets
+    SET
+      name = $2,
+      schema_version = $12,
+      filter = $3,
+      mood = $4,
+      movement = $5,
+      space = $6,
+      expression = $7,
+      attack = $8,
+      decay = $9,
+      sustain = $10,
+      release = $11,
+      updated_at = NOW()
+    WHERE id = $1
+    RETURNING *;
+    `,
+    [
+      id,
+      input.name,
+      input.parameters.filter,
+      input.parameters.mood,
+      input.parameters.movement,
+      input.parameters.space,
+      input.parameters.expression,
+      input.parameters.attack,
+      input.parameters.decay,
+      input.parameters.sustain,
+      input.parameters.release,
+      input.schemaVersion,
+    ],
+  );
+
+  const row = result.rows[0];
+
+  if (!row) {
+    return undefined;
+  }
+
+  return mapPresetRow(row);
+}
