@@ -16,15 +16,22 @@ restore 1.1 and confirm it passes. This proves the test can catch a regression.
 
 ## Extend coverage
 
-- Accept parameter boundaries 0 and 1.
-- Reject negative, missing, and unknown parameters.
-- Reject blank names and names longer than 100 characters.
-- Reject unsupported schema versions and unknown top-level fields.
-- Test rename validation and pagination defaults and invalid values.
+Validation coverage is complete in `src/schemas/preset.test.ts`:
 
-Use separate tests for separate behaviors. Finish with `npm test` and
-`npm run typecheck` passing. The supplied test demonstrates arrange, act,
-assert: prepare input, call the schema, check the output.
+- All nine controls accept 0 and 1 and reject out-of-range and nonnumeric values.
+- Every control and top-level field is required; unknown fields are rejected.
+- Creation and rename share name trimming, length boundaries, and invalid-input checks.
+- Schema version must be the number 1.
+- Pagination covers defaults, query-string conversion, boundaries, invalid values,
+  and unknown fields.
+
+The loop-generated tests demonstrate table-driven coverage: the same behavior
+is checked against several inputs without copying an entire test for each one.
+Error paths are asserted where they identify the invalid field; exact Zod
+message wording is avoided so dependency wording changes do not break tests.
+
+Run `npm test` and `npm run typecheck` to verify this slice.
+These checks cover schema behavior; HTTP responses and persistence still need tests.
 
 Next, add persistence tests with disposable records for create/read/replace/delete
 and reliable cleanup. Keep the roadmap testing item open until those are covered.
