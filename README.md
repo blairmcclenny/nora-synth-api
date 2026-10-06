@@ -48,9 +48,10 @@ Expect HTTP 200 and `{"service":"nora-synth-api","status":"ok"}`. The health rou
 | GET | `/v1/presets` | List presets with pagination | 200, `{ items, limit, offset, total }` |
 | GET | `/v1/presets/:id` | Retrieve a preset by UUID | 200, full preset |
 | PATCH | `/v1/presets/:id` | Rename a preset by UUID | 200, full preset |
+| PUT | `/v1/presets/:id` | Replace a complete preset | 200, full preset |
 | DELETE | `/v1/presets/:id` | Delete a preset by UUID | 204, no response body |
 
-Renaming is supported; updating a complete parameter snapshot with PUT is not implemented yet. The current prototype has a single shared preset library and no authentication.
+Renaming and complete preset replacement with PUT are supported. PUT accepts the same complete body as POST and returns 200, or 404 for a missing preset. The current prototype has a single shared preset library and no authentication.
 
 ### Save a preset
 
@@ -154,7 +155,7 @@ npx tsx --env-file=.env src/db/check-delete.ts
 
 This script creates a disposable preset, asserts that deletion succeeds, confirms the preset can no longer be retrieved, and asserts that deleting it again returns `false`. It prints `Delete checks passed` when all assertions pass. It calls the repository directly, so the HTTP server does not need to be running.
 
-These are development checks, not an automated test suite. There is no `npm test` command yet.
+These database scripts are manual development checks. Run `npm test` for the initial automated schema test. See [the next learning task](docs/next-task.md) to extend validation coverage before adding persistence tests.
 
 ## Project structure
 
@@ -180,7 +181,7 @@ src/
 - [x] List presets with validated pagination and a total count.
 - [x] Delete presets by ID with validation and missing-preset handling.
 - [x] Rename presets with PATCH, validation, and missing-preset handling.
-- [ ] Update complete preset parameter snapshots with PUT.
+- [x] Update complete preset parameter snapshots with PUT.
 - [ ] Add focused automated tests for validation and persistence.
 - [ ] Connect the synth's save, list, and recall controls.
 - [ ] Decide authentication, ownership, and deployment before remote hosting.
