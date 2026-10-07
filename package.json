@@ -8,7 +8,7 @@
     "typecheck": "tsc --noEmit",
     "build": "tsc",
     "start": "node dist/server.js",
-    "test": "node --import tsx --test src/schemas/*.test.ts"
+    "test": "node --import tsx --test src/schemas/*.test.ts src/app.test.ts"
   },
   "engines": {
     "node": ">=24"
