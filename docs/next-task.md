@@ -31,7 +31,28 @@ Error paths are asserted where they identify the invalid field; exact Zod
 message wording is avoided so dependency wording changes do not break tests.
 
 Run `npm test` and `npm run typecheck` to verify this slice.
-These checks cover schema behavior; HTTP responses and persistence still need tests.
+HTTP rejection tests are now in `src/app.test.ts` and run with `npm test`.
+
+## How the HTTP tests work
+
+`app.request()` sends a Request directly through Hono's middleware and routes.
+It returns a Response whose status, headers, and JSON body we assert. No port is
+opened, so the development server does not need to run.
+
+The tests use `async` callbacks because requests and reading response bodies
+return promises. `await` waits for each result before making assertions.
+
+The database pool still gets imported with the app. The test sets a dummy
+connection string before dynamically importing it, then replaces `pool.query`
+with a function that fails immediately. The final check asserts there were zero
+query calls. This proves health and invalid requests never reached persistence.
+`after()` restores the query function and closes the pool when the file finishes.
+
+Coverage includes health, invalid UUIDs, unsupported content types, malformed
+JSON, invalid bodies with field paths, and invalid pagination.
+
+For successful requests we will use real PostgreSQL in a separate test database.
+Those tests will check both HTTP behavior and the persisted result.
 
 Next, add persistence tests with disposable records for create/read/replace/delete
 and reliable cleanup. Keep the roadmap testing item open until those are covered.
