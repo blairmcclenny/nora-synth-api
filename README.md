@@ -4,24 +4,76 @@ A standalone Hono API for saving, listing, recalling, renaming, and deleting syn
 
 ## Local setup
 
-Requires Node.js 24 or newer, npm, a running PostgreSQL database, and the `psql` client to apply the migration.
+Requires Node.js 24 or newer, npm, and Docker Desktop. Local PostgreSQL runs
+in the existing `nora-postgres` container (`postgres:18`); use its bundled
+administrative clients rather than installing host `psql`/`createdb` or starting
+host PostgreSQL services. Node's `pg` driver runs on the host and connects through
+the container's published `127.0.0.1:5432` port.
 
 ```sh
 npm install
+docker info --format '{{.ServerVersion}}'
+docker inspect nora-postgres --format 'image={{.Config.Image}} status={{.State.Status}} ports={{json .NetworkSettings.Ports}}'
 ```
 
-Create a database and a PostgreSQL user with permission to create tables and read and write data. Create a `.env` file in the project root with your connection string:
+If `docker info` cannot reach the daemon, open Docker Desktop and wait until its
+engine is running. If the existing container is stopped, run
+`docker start nora-postgres`, then check readiness:
+
+```sh
+docker exec nora-postgres sh -c 'pg_isready -U "$POSTGRES_USER" -d postgres'
+```
+
+Reuse this container; do not recreate it or reset its databases. Inspect only the
+selected fields above, since a full container inspection can expose credentials.
+
+### Databases and migrations
+
+The established databases are `nora_synth` for development and `nora_synth_test`
+for persistence tests. Keep their separate connection strings in the ignored
+project-root `.env` (the following values are placeholders):
 
 ```dotenv
 DATABASE_URL=postgresql://USER:PASSWORD@localhost:5432/nora_synth
+TEST_DATABASE_URL=postgresql://USER:PASSWORD@localhost:5432/nora_synth_test
 ```
 
-Replace the placeholder credentials and database name with your own. `.env` is ignored by Git. There is no migration runner yet; apply the initial migration once to a fresh database using the same connection string:
+Preserve existing credentials; never print or commit `.env` or actual connection
+URLs. The application currently reads `DATABASE_URL`; `TEST_DATABASE_URL` is
+reserved for persistence tests, which are not implemented yet. Database tests
+must use the test URL and never clean up development data.
+
+Check which databases already exist with the container's `psql`:
 
 ```sh
-psql 'postgresql://USER:PASSWORD@localhost:5432/nora_synth' \
-  -v ON_ERROR_STOP=1 -f src/db/migrations/001_create_presets.sql
+docker exec nora-postgres sh -c 'psql -X -U "$POSTGRES_USER" -d postgres -v ON_ERROR_STOP=1 -c "SELECT datname FROM pg_database WHERE datname IN ('"'"'nora_synth'"'"', '"'"'nora_synth_test'"'"') ORDER BY datname;"'
 ```
+
+Only if a database is missing, create that database using the container's
+configured role. For example, to create a missing test database:
+
+```sh
+docker exec nora-postgres sh -c 'createdb -U "$POSTGRES_USER" nora_synth_test'
+```
+
+Use `nora_synth` instead to create a missing development database. There is no
+migration runner yet. Check for the initial table in the target database first:
+
+```sh
+docker exec nora-postgres sh -c 'psql -X -U "$POSTGRES_USER" -d nora_synth_test -v ON_ERROR_STOP=1 -c "SELECT to_regclass('"'"'public.presets'"'"');"'
+```
+
+Only on a fresh database where that result is null, apply the initial migration
+from the project root:
+
+```sh
+docker exec -i nora-postgres sh -c 'psql -X -U "$POSTGRES_USER" -d nora_synth_test -v ON_ERROR_STOP=1' < src/db/migrations/001_create_presets.sql
+```
+
+Replace `nora_synth_test` with `nora_synth` for development. Both established
+databases already have this migration; it is not safe to rerun because it uses
+`CREATE TABLE` without `IF NOT EXISTS`. The role is resolved inside the container
+without printing its environment or passing a credential-bearing URL.
 
 Start the development server:
 

@@ -38,6 +38,21 @@ This is a learning project. Default to coaching so the user can write the code.
 - Fetch the remote and fast-forward the base with `git merge --ff-only`.
   Investigate divergence instead of force-updating a local base branch.
 
+## Local PostgreSQL uses Docker
+
+- Follow [the README Docker workflow](README.md#local-setup) for local database
+  setup, readiness, administration, and migrations. This is the user's
+  established preference for future sessions.
+- Reuse `nora-postgres` (`postgres:18`) through Docker Desktop. Use `docker exec`
+  for its bundled `psql` and `createdb`; do not assume host PostgreSQL clients or
+  start host PostgreSQL services. Host Node `pg` uses the published port 5432.
+- Preserve ignored `.env` credentials and never print full container environment
+  or actual connection URLs. `DATABASE_URL` targets development `nora_synth`;
+  `TEST_DATABASE_URL` targets separate `nora_synth_test` for persistence tests.
+- Inspect existing databases and tables before creating or migrating them. Do
+  not reset/delete databases, recreate the container, or alter unrelated Docker
+  projects as part of routine setup.
+
 ## Validate, commit, and push
 
 - Run checks appropriate to the change. For TypeScript and tests, use
