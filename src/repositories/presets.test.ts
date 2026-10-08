@@ -45,6 +45,10 @@ test('a created preset can be read back', async () => {
     assert.ok(retrieved);
     assert.equal(retrieved.name, created.name);
     assert.deepEqual(retrieved.parameters, created.parameters);
+    assert.equal(retrieved.id, created.id);
+    assert.equal(retrieved.schemaVersion, created.schemaVersion);
+    assert.equal(retrieved.createdAt, created.createdAt);
+    assert.equal(retrieved.updatedAt, created.updatedAt);
   } finally {
     await deletePresetById(created.id);
   }
