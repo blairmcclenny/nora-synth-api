@@ -53,3 +53,34 @@ test('a created preset can be read back', async () => {
     await deletePresetById(created.id);
   }
 });
+
+test('a preset can be deleted', async () => {
+  const created = await createPreset({
+    name: 'First saved preset',
+    schemaVersion: 1,
+    parameters: {
+      filter: 0.1,
+      mood: 0.2,
+      space: 0.24,
+      movement: 0.31,
+      expression: 0.13,
+      attack: 0.4,
+      decay: 0.5,
+      sustain: 0.6,
+      release: 0.8,
+    },
+  });
+
+  try {
+    const deleted = await deletePresetById(created.id);
+    assert.equal(deleted, true);
+
+    const retrieved = await getPresetById(created.id);
+    assert.equal(retrieved, undefined);
+
+    const deletedAgain = await deletePresetById(created.id);
+    assert.equal(deletedAgain, false);
+  } finally {
+    await deletePresetById(created.id);
+  }
+});
