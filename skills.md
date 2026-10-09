@@ -60,6 +60,10 @@ This is a learning project. Default to coaching so the user can write the code.
 - Explain what changed, what passed, and any checks that remain unverified.
 - Commit and push when requested; do not infer authorization to merge a pull
   request from authorization to push a branch.
+- After every successful push of a branch to the remote, include a clickable
+  Markdown link to that remote branch in the final response so the user can
+  open it from the Codex app. Use the repository's actual remote URL and pushed
+  branch name; also include the pull request link when one exists.
 - Keep commits scoped to the current task. The user handles remote merging
   unless they explicitly delegate it.
 
