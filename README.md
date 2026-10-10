@@ -39,9 +39,10 @@ TEST_DATABASE_URL=postgresql://USER:PASSWORD@localhost:5432/nora_synth_test
 ```
 
 Preserve existing credentials; never print or commit `.env` or actual connection
-URLs. The application currently reads `DATABASE_URL`; `TEST_DATABASE_URL` is
-reserved for persistence tests, which are not implemented yet. Database tests
-must use the test URL and never clean up development data.
+URLs. The application reads `DATABASE_URL`; persistence tests use
+`TEST_DATABASE_URL` and require its database name to be `nora_synth_test`.
+Each test creates disposable records and deletes them in a `finally` block.
+Database tests must never clean up development data.
 
 Check which databases already exist with the container's `psql`:
 
@@ -180,6 +181,8 @@ A successful deletion returns HTTP 204 with no response body. Recalling that pre
 | Command | Purpose |
 | --- | --- |
 | `npm run dev` | Load `.env` and start the server with automatic restarts |
+| `npm test` | Run schema validation and HTTP rejection tests without PostgreSQL |
+| `npm run test:db` | Load `.env` and run repository persistence tests against `nora_synth_test` |
 | `npm run typecheck` | Check TypeScript types without generating files |
 | `npm run build` | Compile TypeScript into `dist/` |
 | `npm start` | Run the compiled server; requires `DATABASE_URL` in the environment |
@@ -207,7 +210,21 @@ npx tsx --env-file=.env src/db/check-delete.ts
 
 This script creates a disposable preset, asserts that deletion succeeds, confirms the preset can no longer be retrieved, and asserts that deleting it again returns `false`. It prints `Delete checks passed` when all assertions pass. It calls the repository directly, so the HTTP server does not need to be running.
 
-These database scripts are manual development checks. Run `npm test` for the initial automated schema test. See [the next learning task](docs/next-task.md) to extend validation coverage before adding persistence tests.
+These database scripts are manual development checks. Automated tests run separately:
+
+```sh
+npm test
+npm run test:db
+npm run typecheck
+```
+
+`npm test` covers schema validation, health, and HTTP rejection behavior without
+opening a port or querying PostgreSQL. `npm run test:db` requires the Docker
+database to be running, `TEST_DATABASE_URL` in `.env`, and the initial migration
+applied to `nora_synth_test`. It verifies create/read, complete replacement, and
+delete behavior through the repository, including cleanup of disposable records.
+Neither test command requires the development server to run. Successful HTTP
+requests still need automated persistence coverage.
 
 ## Project structure
 
@@ -234,7 +251,8 @@ src/
 - [x] Delete presets by ID with validation and missing-preset handling.
 - [x] Rename presets with PATCH, validation, and missing-preset handling.
 - [x] Update complete preset parameter snapshots with PUT.
-- [ ] Add focused automated tests for validation and persistence.
+- [x] Add focused automated tests for validation and repository persistence.
+- [ ] Add successful HTTP request tests backed by the test database.
 - [ ] Connect the synth's save, list, and recall controls.
 - [ ] Decide authentication, ownership, and deployment before remote hosting.
 
