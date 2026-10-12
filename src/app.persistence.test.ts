@@ -66,3 +66,58 @@ test('a preset can be created and read back', async () => {
     assert.equal(deleted.status, 204);
   }
 });
+
+test('a preset can be renamed and read back.', async () => {
+  const preset: CreatePresetInput = {
+    name: 'First saved preset',
+    schemaVersion: 1,
+    parameters: {
+      filter: 0.1,
+      mood: 0.2,
+      space: 0.24,
+      movement: 0.31,
+      expression: 0.13,
+      attack: 0.4,
+      decay: 0.5,
+      sustain: 0.6,
+      release: 0.8,
+    },
+  };
+
+  const response = await app.request('/v1/presets', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(preset),
+  });
+  const created = await response.json();
+
+  try {
+    assert.equal(response.status, 201);
+
+    const updatedResponse = await app.request(`/v1/presets/${created.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'Renamed preset' }),
+    });
+    const updated = await updatedResponse.json();
+
+    assert.equal(updatedResponse.status, 200);
+    assert.equal(updated.name, 'Renamed preset');
+    assert.equal(updated.id, created.id);
+    assert.equal(updated.createdAt, created.createdAt);
+    assert.equal(updated.schemaVersion, created.schemaVersion);
+    assert.deepEqual(updated.parameters, created.parameters);
+
+    const retrievedResponse = await app.request(`/v1/presets/${updated.id}`);
+    const retrieved = await retrievedResponse.json();
+
+    assert.equal(retrievedResponse.status, 200);
+    assert.deepEqual(retrieved, updated);
+  } finally {
+    const deleted = await app.request(`/v1/presets/${created.id}`, {
+      method: 'DELETE',
+    });
+
+    assert.equal(deleted.status, 204);
+  }
+});
