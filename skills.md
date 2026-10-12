@@ -55,6 +55,11 @@ This is a learning project. Default to coaching so the user can write the code.
 
 ## Validate, commit, and push
 
+- Before every commit, format all changed files to match the surrounding project
+  style. Use the project's configured formatter when available; otherwise review
+  indentation, semicolons, trailing commas, and whitespace manually. Run
+  `git diff --check` and inspect the staged diff before committing. Keep formatting
+  changes scoped to the files involved in the task.
 - Run checks appropriate to the change. For TypeScript and tests, use
   `npm test` and `npm run typecheck`.
 - Explain what changed, what passed, and any checks that remain unverified.
