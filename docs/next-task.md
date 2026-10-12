@@ -1,20 +1,52 @@
-# Next learning task: automated validation tests
+# Next learning task: HTTP replacement persistence
 
-PUT is implemented. Start automated testing with schemas, which need no database.
-Run `npm test` and open `src/schemas/preset.test.ts`.
+Updated October 12, 2026.
 
-## First exercise
+## Completed persistence exercises
 
-Add a test that rejects a filter value above 1. Copy `validPreset` using object
-spreads, including a fresh nested `parameters` object, and set filter to 1.1.
-Call `createPresetInputSchema.safeParse(input)` and assert `result.success` is
-false. Narrow the result with an `if` statement, then check that an issue has
-the path `parameters.filter`.
+- `src/repositories/presets.test.ts` covers create/read, complete replacement,
+  and deletion, including recall after deletion and repeated deletion.
+- `src/app.persistence.test.ts` covers POST creation with HTTP 201 and a
+  `Location` header, followed by GET recall with HTTP 200 and full equality.
+- The HTTP rename exercise covers POST → PATCH → GET: PATCH returns HTTP 200
+  and the new name while preserving ID, creation timestamp, schema version,
+  and all nine parameters. GET returns HTTP 200 and matches the full PATCH result.
+- Both HTTP tests delete disposable records in `finally` and check HTTP 204.
+- `npm run test:db` runs both persistence test files against `nora_synth_test`.
+  The tests validate the database name before importing the app or repository,
+  and close the pool with `after()`.
 
-Run `npm test`. Temporarily change 1.1 to 0.5 and confirm your test fails;
-restore 1.1 and confirm it passes. This proves the test can catch a regression.
+## Next exercise
 
-## Extend coverage
+Add a successful POST → PUT → GET test in `src/app.persistence.test.ts`.
+This extends the repository replacement exercise through HTTP validation,
+response handling, and persistence.
+
+1. Create a disposable preset with POST and assert HTTP 201.
+2. PUT a complete replacement body with a different name and parameter values.
+3. Assert HTTP 200, the replacement name, schema version, and all nine parameters.
+4. Check that ID and `createdAt` remain unchanged.
+5. GET the preset, assert HTTP 200, and compare the full result with the PUT response.
+6. Delete the record in `finally` and assert HTTP 204.
+
+First step: use the rename test's setup and cleanup as a guide. Define the
+replacement as `CreatePresetInput`; PUT needs the complete snapshot accepted by
+POST, while PATCH accepts only a name. Write the test yourself before asking for
+a review.
+
+With Docker PostgreSQL running, verify with:
+
+```sh
+npm run test:db
+npm test
+npm run typecheck
+```
+
+After replacement, add dedicated HTTP tests for list pagination and deletion,
+including GET and repeated DELETE returning 404 after a successful deletion.
+Keep those roadmap items open until their behavior is covered.
+
+## Completed validation and HTTP rejection exercises
 
 Validation coverage is complete in `src/schemas/preset.test.ts`:
 
@@ -50,9 +82,3 @@ query calls. This proves health and invalid requests never reached persistence.
 
 Coverage includes health, invalid UUIDs, unsupported content types, malformed
 JSON, invalid bodies with field paths, and invalid pagination.
-
-For successful requests we will use real PostgreSQL in a separate test database.
-Those tests will check both HTTP behavior and the persisted result.
-
-Next, add persistence tests with disposable records for create/read/replace/delete
-and reliable cleanup. Keep the roadmap testing item open until those are covered.

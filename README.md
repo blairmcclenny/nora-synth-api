@@ -182,7 +182,7 @@ A successful deletion returns HTTP 204 with no response body. Recalling that pre
 | --- | --- |
 | `npm run dev` | Load `.env` and start the server with automatic restarts |
 | `npm test` | Run schema validation and HTTP rejection tests without PostgreSQL |
-| `npm run test:db` | Load `.env` and run repository persistence tests against `nora_synth_test` |
+| `npm run test:db` | Load `.env` and run repository and HTTP persistence tests against `nora_synth_test` |
 | `npm run typecheck` | Check TypeScript types without generating files |
 | `npm run build` | Compile TypeScript into `dist/` |
 | `npm start` | Run the compiled server; requires `DATABASE_URL` in the environment |
@@ -223,8 +223,13 @@ opening a port or querying PostgreSQL. `npm run test:db` requires the Docker
 database to be running, `TEST_DATABASE_URL` in `.env`, and the initial migration
 applied to `nora_synth_test`. It verifies create/read, complete replacement, and
 delete behavior through the repository, including cleanup of disposable records.
-Neither test command requires the development server to run. Successful HTTP
-requests still need automated persistence coverage.
+HTTP persistence tests in `src/app.persistence.test.ts` also verify POST creation
+with its `Location` header, GET recall, and PATCH rename followed by GET. The
+rename test checks that ID, creation timestamp, schema version, and parameters
+remain unchanged, then compares the full recalled preset with the PATCH response.
+Both HTTP tests delete their disposable records in `finally` and assert HTTP 204.
+Neither test command requires the development server to run. Successful PUT,
+list pagination, and deletion behavior still need dedicated HTTP coverage.
 
 ## Project structure
 
@@ -252,10 +257,14 @@ src/
 - [x] Rename presets with PATCH, validation, and missing-preset handling.
 - [x] Update complete preset parameter snapshots with PUT.
 - [x] Add focused automated tests for validation and repository persistence.
-- [ ] Add successful HTTP request tests backed by the test database.
+- [x] Test successful HTTP preset creation and recall against the test database.
+- [x] Test successful HTTP rename, preserved fields, and persisted recall.
+- [ ] Test successful HTTP replacement, listing, and deletion behavior.
 - [ ] Connect the synth's save, list, and recall controls.
 - [ ] Decide authentication, ownership, and deployment before remote hosting.
 
 The API currently enforces normalized 0–1 values, including the envelope controls. Document how those values map to the synth engine before client integration. SQLite remains a future exploration.
+
+See [the next exercise](docs/next-task.md) for current learning progress and guidance.
 
 See [the project specification](docs/project-spec.md) for the broader draft contract, including planned behavior that is not implemented yet.
