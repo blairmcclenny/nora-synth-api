@@ -1,27 +1,27 @@
-import assert from 'node:assert/strict'
-import { after, test } from 'node:test'
-import { CreatePresetInput } from './types/preset.js'
+import assert from 'node:assert/strict';
+import { after, test } from 'node:test';
+import { CreatePresetInput } from './types/preset.js';
 
-const testDatabaseUrl = process.env.TEST_DATABASE_URL
+const testDatabaseUrl = process.env.TEST_DATABASE_URL;
 
 if (!testDatabaseUrl) {
-  throw new Error('Missing Database Url')
+  throw new Error('Missing Database Url');
 }
 
-const dataBaseUrl = new URL(testDatabaseUrl)
+const dataBaseUrl = new URL(testDatabaseUrl);
 
 if (dataBaseUrl.pathname !== '/nora_synth_test') {
-  throw new Error('Persistence tests must use nora_synth_test')
+  throw new Error('Persistence tests must use nora_synth_test');
 }
 
-process.env.DATABASE_URL = testDatabaseUrl
+process.env.DATABASE_URL = testDatabaseUrl;
 
-const { default: app } = await import('./app.js')
-const { pool } = await import('./db/pool.js')
+const { default: app } = await import('./app.js');
+const { pool } = await import('./db/pool.js');
 
 after(async () => {
-  await pool.end()
-})
+  await pool.end();
+});
 
 test('a preset can be created and read back', async () => {
   const preset: CreatePresetInput = {
@@ -38,31 +38,31 @@ test('a preset can be created and read back', async () => {
       sustain: 0.6,
       release: 0.8,
     },
-  }
+  };
 
   const response = await app.request('/v1/presets', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(preset)
-  })
-  const created = await response.json()
+    body: JSON.stringify(preset),
+  });
+  const created = await response.json();
 
   try {
-    assert.equal(response.status, 201)
-    assert.equal(response.headers.get('Location'), `/v1/presets/${created.id}`)
+    assert.equal(response.status, 201);
+    assert.equal(response.headers.get('Location'), `/v1/presets/${created.id}`);
     assert.equal(created.name, preset.name);
     assert.deepEqual(created.parameters, preset.parameters);
 
-    const retrievedResponse = await app.request(`/v1/presets/${created.id}`)
-    const retrieved = await retrievedResponse.json()
+    const retrievedResponse = await app.request(`/v1/presets/${created.id}`);
+    const retrieved = await retrievedResponse.json();
 
-    assert.equal(retrievedResponse.status, 200)
-    assert.deepEqual(retrieved, created)
+    assert.equal(retrievedResponse.status, 200);
+    assert.deepEqual(retrieved, created);
   } finally {
     const deleted = await app.request(`/v1/presets/${created.id}`, {
-      method: 'DELETE'
-    })
+      method: 'DELETE',
+    });
 
-    assert.equal(deleted.status, 204)
+    assert.equal(deleted.status, 204);
   }
-})
+});
