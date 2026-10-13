@@ -1,4 +1,4 @@
-# Next learning task: HTTP replacement persistence
+# Next learning task: synth client integration
 
 Updated October 12, 2026.
 
@@ -11,40 +11,48 @@ Updated October 12, 2026.
 - The HTTP rename exercise covers POST → PATCH → GET: PATCH returns HTTP 200
   and the new name while preserving ID, creation timestamp, schema version,
   and all nine parameters. GET returns HTTP 200 and matches the full PATCH result.
-- Both HTTP tests delete disposable records in `finally` and check HTTP 204.
+- The HTTP replacement exercise covers POST → PUT → GET with exact replacement
+  values, preserved ID and creation timestamp, and persisted recall.
+- HTTP listing covers default pagination, limit and offset, full preset objects,
+  total counts independent of page size, empty pages, and timestamp ordering with
+  an ascending UUID tie-breaker. Only disposable fixtures have their timestamps
+  adjusted; existing test records are preserved.
+- HTTP deletion checks 204 with no body, then GET and repeated DELETE returning
+  404 with the `NOT_FOUND` error envelope.
+- Every persistence test cleans up only its disposable records in `finally`.
+  Database test files run sequentially to keep list totals stable.
 - `npm run test:db` runs both persistence test files against `nora_synth_test`.
   The tests validate the database name before importing the app or repository,
   and close the pool with `after()`.
 
 ## Next exercise
 
-Add a successful POST → PUT → GET test in `src/app.persistence.test.ts`.
-This extends the repository replacement exercise through HTTP validation,
-response handling, and persistence.
+Connect the synth's save, list, and recall controls to the API. The planned
+backend validation and persistence testing exercises are complete.
 
-1. Create a disposable preset with POST and assert HTTP 201.
-2. PUT a complete replacement body with a different name and parameter values.
-3. Assert HTTP 200, the replacement name, schema version, and all nine parameters.
-4. Check that ID and `createdAt` remain unchanged.
-5. GET the preset, assert HTTP 200, and compare the full result with the PUT response.
-6. Delete the record in `finally` and assert HTTP 204.
+First step: locate the synth client source and document how its nine controls
+map to the API's normalized 0–1 parameter values. Include the envelope controls;
+attack, decay, and release currently represent normalized controls, not seconds.
+Do not guess engine mappings or change the schema contract silently.
 
-First step: use the rename test's setup and cleanup as a guide. Define the
-replacement as `CreatePresetInput`; PUT needs the complete snapshot accepted by
-POST, while PATCH accepts only a name. Write the test yourself before asking for
-a review.
+Then work through the client flow in small steps:
 
-With Docker PostgreSQL running, verify with:
+1. Save a complete snapshot with POST and display confirmation only after 201.
+2. Fetch the preset list with GET and display names while retaining preset IDs.
+3. Recall by ID with GET and apply all nine values together to the controls and engine.
+4. Show request errors and preserve the current settings when a save or recall fails.
+5. Verify that recalled values match the saved snapshot and survive an API restart.
+
+Keep authentication, library ownership, and deployment decisions open until
+before remote hosting. The current API uses one shared local library.
+
+Backend regression checks remain:
 
 ```sh
 npm run test:db
 npm test
 npm run typecheck
 ```
-
-After replacement, add dedicated HTTP tests for list pagination and deletion,
-including GET and repeated DELETE returning 404 after a successful deletion.
-Keep those roadmap items open until their behavior is covered.
 
 ## Completed validation and HTTP rejection exercises
 
