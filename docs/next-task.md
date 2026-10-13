@@ -1,4 +1,4 @@
-# Next learning task: missing-resource HTTP tests
+# Next learning task: tracked database migrations
 
 Updated October 13, 2026.
 
@@ -19,6 +19,8 @@ Updated October 13, 2026.
   adjusted; existing test records are preserved.
 - HTTP deletion checks 204 with no body, then GET and repeated DELETE returning
   404 with the `NOT_FOUND` error envelope.
+- Missing-resource GET, PATCH, and PUT return 404 with `NOT_FOUND`. Direct
+  storage checks confirm that none of these requests recreates the deleted preset.
 - Every persistence test cleans up only its disposable records in `finally`.
   Database test files run sequentially to keep list totals stable.
 - `npm run test:db` runs both persistence test files against `nora_synth_test`.
@@ -31,20 +33,22 @@ The learning goal is to finish the standalone API before connecting a frontend.
 The original CRUD persistence exercises are complete; the next lessons cover
 remaining error behavior, migrations, the API contract, and service operation.
 
-Add HTTP persistence tests for GET, PATCH, and PUT using a valid UUID that does
-not exist. Each request should return HTTP 404 with the existing `NOT_FOUND`
-error envelope. PATCH and PUT must not create a record when the ID is missing.
+The next hands-on implementation lesson is a migration runner. Today the README
+requires manually applying SQL; the runner should discover migration files,
+record successful applications, and skip files already applied.
 
-First step: inspect the dedicated deletion test in `src/app.persistence.test.ts`.
-It already demonstrates a missing-resource response after deletion. Use a
-server-created disposable preset, delete it, and exercise GET, PATCH, and PUT
-against that ID. Send valid bodies for PATCH and PUT so validation does not
-reject the requests before they reach the missing-resource logic. Keep cleanup
-in `finally` and leave unrelated test records intact.
+First step: inspect `src/db/migrations/001_create_presets.sql` and `src/db/pool.ts`.
+Sketch the information a migration-history table needs and how the runner would
+choose pending files in filename order. Leave implementation for the next exercise.
 
-After those checks, verify that rejected updates preserve existing stored data
-and that unexpected errors produce a safe HTTP 500 response. These are separate
-small exercises; start with missing-resource behavior.
+Plan for both fresh databases and the established databases, which already have
+`presets` but no migration history. Do not rerun the initial CREATE TABLE migration
+or reset those databases. Existing-schema adoption needs an explicit verification
+step before recording the initial migration as applied. Each new migration and
+its history entry should commit together, with rollback on failure.
+
+Rejected-update persistence and safe HTTP 500 coverage remain open follow-up
+items; they are deferred so the next learning session focuses on implementation.
 
 Verify with Docker PostgreSQL running:
 
@@ -56,8 +60,8 @@ npm run typecheck
 
 ## Remaining API lessons
 
-1. Finish missing-resource, failed-update, and safe server-error coverage.
-2. Add a migration runner that records applied migrations and runs only pending SQL.
+1. Add a migration runner that records applied migrations and runs only pending SQL.
+2. Complete the deferred failed-update persistence and safe server-error coverage.
 3. Write an OpenAPI specification for the implemented routes and error envelopes.
 4. Validate startup configuration, add database readiness separately from liveness,
    and verify graceful shutdown and persistence across service restarts.
