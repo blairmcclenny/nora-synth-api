@@ -57,24 +57,53 @@ configured role. For example, to create a missing test database:
 docker exec nora-postgres sh -c 'createdb -U "$POSTGRES_USER" nora_synth_test'
 ```
 
-Use `nora_synth` instead to create a missing development database. There is no
-migration runner yet. Check for the initial table in the target database first:
+Use `nora_synth` instead to create a missing development database.
+
+### Tracked migrations
+
+The migration runner records filenames and application times in
+`schema_migrations`, applies pending `.sql` files in filename order, and skips
+applied files. Each migration and its history entry run in one transaction. A
+failure rolls back that migration and stops; prior successes remain committed.
+A database advisory lock prevents concurrent runners from applying the same file.
+
+Inspect the existing tables before running migrations:
 
 ```sh
-docker exec nora-postgres sh -c 'psql -X -U "$POSTGRES_USER" -d nora_synth_test -v ON_ERROR_STOP=1 -c "SELECT to_regclass('"'"'public.presets'"'"');"'
+docker exec nora-postgres sh -c 'psql -X -U "$POSTGRES_USER" -d nora_synth -c "\dt"'
+docker exec nora-postgres sh -c 'psql -X -U "$POSTGRES_USER" -d nora_synth_test -c "\dt"'
 ```
 
-Only on a fresh database where that result is null, apply the initial migration
-from the project root:
+For a fresh database, or one already using tracked migrations:
 
 ```sh
-docker exec -i nora-postgres sh -c 'psql -X -U "$POSTGRES_USER" -d nora_synth_test -v ON_ERROR_STOP=1' < src/db/migrations/001_create_presets.sql
+npm run db:migrate
+npm run db:migrate:test
 ```
 
-Replace `nora_synth_test` with `nora_synth` for development. Both established
-databases already have this migration; it is not safe to rerun because it uses
-`CREATE TABLE` without `IF NOT EXISTS`. The role is resolved inside the container
-without printing its environment or passing a credential-bearing URL.
+The development command uses `DATABASE_URL`. The test command uses
+`TEST_DATABASE_URL` and requires the database name `nora_synth_test`.
+
+Both established local databases have now been adopted. For another existing
+database that has `presets` but no history, use explicit adoption once:
+
+```sh
+npm run db:migrate -- --adopt-existing
+npm run db:migrate:test -- --adopt-existing
+```
+
+Adoption compares columns, types, nullability, defaults, the primary key, and
+constraints with a temporary reference created from the initial migration. Only
+an exact match is recorded as applied; existing preset data is preserved. A
+mismatch stops for investigation. The temporary reference is dropped, and the
+initial migration is never rerun against the existing table. Subsequent pending
+migrations still execute normally.
+
+Keep applied SQL files unchanged and add a new numbered migration for each
+schema change. The runner rejects missing applied files but does not checksum
+file contents. Migration files must contain SQL without their own transaction
+commands. For the compiled runner, `npm run build` copies SQL into
+`dist/db/migrations`; run `node --env-file=.env dist/db/migrate.js` locally.
 
 Start the development server:
 
@@ -183,8 +212,10 @@ A successful deletion returns HTTP 204 with no response body. Recalling that pre
 | `npm run dev` | Load `.env` and start the server with automatic restarts |
 | `npm test` | Run schema validation and HTTP rejection tests without PostgreSQL |
 | `npm run test:db` | Load `.env` and run repository and HTTP persistence tests against `nora_synth_test` |
+| `npm run db:migrate` | Apply pending development database migrations |
+| `npm run db:migrate:test` | Apply pending test database migrations |
 | `npm run typecheck` | Check TypeScript types without generating files |
-| `npm run build` | Compile TypeScript into `dist/` |
+| `npm run build` | Compile TypeScript and copy SQL migrations into `dist/` |
 | `npm start` | Run the compiled server; requires `DATABASE_URL` in the environment |
 
 To run the compiled server with your local `.env`:
@@ -247,14 +278,18 @@ src/
   repositories/presets.ts SQL queries and database-to-JSON mapping
   db/
     pool.ts               PostgreSQL connection pool
-    migrations/           SQL migrations applied manually
+    migrations/           Numbered SQL migrations
+    migrate.ts            Migration command
+    migration-runner.ts   Transactional migration execution and adoption
     check*.ts             Manual database checks
 ```
 
 ## Learning roadmap
 
 The main learning goal is to finish a standalone API that a frontend can connect
-to later. Building the synth client is deferred until after the API lessons.
+to later. Start with a private MVP and design authentication and ownership for
+eventual multiple users. Building the synth client is deferred until after the
+API lessons.
 
 - [x] Start Hono and respond to a health request.
 - [x] Define a preset and validate requests with Zod.
@@ -269,9 +304,12 @@ to later. Building the synth client is deferred until after the API lessons.
 - [x] Test successful HTTP rename, preserved fields, and persisted recall.
 - [x] Test successful HTTP replacement, listing, and deletion behavior.
 - [x] Test missing-resource GET, PATCH, and PUT responses.
-- [ ] Verify rejected updates leave persisted presets unchanged.
-- [ ] Test safe HTTP 500 responses without exposing internal error details.
-- [ ] Add a migration runner that tracks and applies pending SQL migrations.
+- [x] Verify rejected updates leave persisted presets unchanged.
+- [x] Test safe HTTP 500 responses without exposing internal error details.
+- [x] Add a migration runner that tracks and applies pending SQL migrations.
+- [ ] Choose MVP authentication and implement verified caller identity.
+- [ ] Migrate presets to explicit owners and scope every operation to that owner.
+- [ ] Verify two identities cannot access each other's presets.
 - [ ] Document requests, responses, and errors in an OpenAPI specification.
 - [ ] Validate startup configuration and distinguish database readiness from liveness.
 - [ ] Verify graceful shutdown and persistence across service restarts.

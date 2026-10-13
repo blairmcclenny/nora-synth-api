@@ -1,4 +1,4 @@
-# Next learning task: tracked database migrations
+# Next learning task: authentication and preset ownership
 
 Updated October 13, 2026.
 
@@ -27,50 +27,62 @@ Updated October 13, 2026.
   The tests validate the database name before importing the app or repository,
   and close the pool with `after()`.
 
+## Completed migration and error exercises
+
+- Rejected PATCH and PUT bodies, including malformed JSON, leave the full stored
+  preset unchanged.
+- Unexpected database errors return a generic JSON 500 envelope while internal
+  details stay out of the response.
+- The migration runner discovers SQL files in order, skips tracked files, and
+  commits each schema change with its history entry or rolls back on failure.
+- Explicit initial-schema adoption compares columns and constraints and preserves
+  existing data. Tests cover fresh and repeated runs, adoption, incompatible
+  schemas, ordered execution, and rollback in disposable test schemas.
+- An advisory lock serializes runners; the build copies SQL files for compiled use.
+
 ## Next exercise
 
-The learning goal is to finish the standalone API before connecting a frontend.
-The original CRUD persistence exercises are complete; the next lessons cover
-remaining error behavior, migrations, the API contract, and service operation.
+Build toward a private MVP that can eventually support multiple users. The next
+learning section is authentication and preset ownership, followed by deployment.
+Frontend integration remains deferred.
 
-The next hands-on implementation lesson is a migration runner. Today the README
-requires manually applying SQL; the runner should discover migration files,
-record successful applications, and skip files already applied.
+First, distinguish the two responsibilities:
 
-First step: inspect `src/db/migrations/001_create_presets.sql` and `src/db/pool.ts`.
-Sketch the information a migration-history table needs and how the runner would
-choose pending files in filename order. Leave implementation for the next exercise.
+- Authentication identifies who is calling the API.
+- Ownership determines which presets that identity can access or change.
 
-Plan for both fresh databases and the established databases, which already have
-`presets` but no migration history. Do not rerun the initial CREATE TABLE migration
-or reset those databases. Existing-schema adoption needs an explicit verification
-step before recording the initial migration as applied. Each new migration and
-its history entry should commit together, with rollback on failure.
+The first guided step is to choose how callers obtain and send credentials.
+Compare a private MVP credential mapped to a single stable owner with a managed
+identity provider that issues verified tokens. Avoid building password storage
+as a prerequisite for this learning project. Make the choice before adding code.
 
-Rejected-update persistence and safe HTTP 500 coverage remain open follow-up
-items; they are deferred so the next learning session focuses on implementation.
+Then implement in small steps:
 
-Verify with Docker PostgreSQL running:
+1. Verify credentials in middleware and attach a trusted owner identity to requests.
+2. Add an owner identifier through a tracked migration, assigning existing shared
+   presets explicitly to the MVP owner.
+3. Scope create, list, recall, rename, replace, and delete to the authenticated owner.
+   Resolve ownership on the server, not from an untrusted request body.
+4. Verify missing/invalid credentials return 401 and one owner cannot access another
+   owner's presets. Use two test identities even if the MVP serves one person.
+5. Document the credential flow and authenticated contract for future clients.
+
+## Deployment preparation
+
+OpenAPI documentation, startup configuration validation, database readiness,
+graceful shutdown, and restart persistence verification remain open. Complete
+these before remote deployment, alongside the chosen authentication and ownership
+implementation. Choose hosting, configure secrets, apply migrations, and verify
+the hosted API directly without requiring a frontend.
+
+Regression checks:
 
 ```sh
-npm run test:db
 npm test
+npm run test:db
 npm run typecheck
+npm run build
 ```
-
-## Remaining API lessons
-
-1. Add a migration runner that records applied migrations and runs only pending SQL.
-2. Complete the deferred failed-update persistence and safe server-error coverage.
-3. Write an OpenAPI specification for the implemented routes and error envelopes.
-4. Validate startup configuration, add database readiness separately from liveness,
-   and verify graceful shutdown and persistence across service restarts.
-5. Decide authentication, library ownership, and hosting before remote deployment,
-   then document and verify the chosen deployment workflow.
-
-The current prototype has one shared local library. Authentication and ownership
-remain decisions to resolve; no account system is assumed by this roadmap.
-Frontend construction, engine mappings, and save/list/recall integration are deferred.
 
 ## Completed validation and HTTP rejection exercises
 
