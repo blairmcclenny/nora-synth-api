@@ -121,3 +121,74 @@ test('a preset can be renamed and read back.', async () => {
     assert.equal(deleted.status, 204);
   }
 });
+
+test('a preset can be replaced and read back.', async () => {
+  const preset: CreatePresetInput = {
+    name: 'First saved preset',
+    schemaVersion: 1,
+    parameters: {
+      filter: 0.1,
+      mood: 0.2,
+      space: 0.24,
+      movement: 0.31,
+      expression: 0.13,
+      attack: 0.4,
+      decay: 0.5,
+      sustain: 0.6,
+      release: 0.8,
+    },
+  };
+
+  const replacement: CreatePresetInput = {
+    name: 'Replaced preset',
+    schemaVersion: 1,
+    parameters: {
+      filter: 0.9,
+      mood: 0.8,
+      space: 0.76,
+      movement: 0.69,
+      expression: 0.87,
+      attack: 0.6,
+      decay: 0.7,
+      sustain: 0.4,
+      release: 0.2,
+    },
+  };
+
+  const response = await app.request('/v1/presets', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(preset),
+  });
+  const created = await response.json();
+
+  try {
+    assert.equal(response.status, 201);
+
+    const replacedResponse = await app.request(`/v1/presets/${created.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(replacement),
+    });
+    const replaced = await replacedResponse.json();
+
+    assert.equal(replacedResponse.status, 200);
+    assert.equal(replaced.id, created.id);
+    assert.equal(replaced.createdAt, created.createdAt);
+    assert.equal(replaced.schemaVersion, replacement.schemaVersion);
+    assert.equal(replaced.name, replacement.name);
+    assert.deepEqual(replaced.parameters, replacement.parameters);
+
+    const retrievedResponse = await app.request(`/v1/presets/${replaced.id}`);
+    const retrieved = await retrievedResponse.json();
+
+    assert.equal(retrievedResponse.status, 200);
+    assert.deepEqual(retrieved, replaced);
+  } finally {
+    const deleted = await app.request(`/v1/presets/${created.id}`, {
+      method: 'DELETE',
+    });
+
+    assert.equal(deleted.status, 204);
+  }
+});
