@@ -1,10 +1,13 @@
 # Synth Preset API
 
-Status: draft specification · Updated September 15, 2026
+Status: draft specification · Updated October 13, 2026
 
 ## Goal
 
 Build a standalone backend API using Hono that lets a synth save and recall presets. A preset is a named snapshot of all nine synth parameters. The synth client handles audio generation and applies the saved values; the API validates and persists them.
+
+The main learning goal is to complete this standalone API. Frontend construction
+and synth integration are deferred until the API lessons are finished.
 
 ## Confirmed requirements
 
@@ -194,4 +197,10 @@ Explore SQLite separately at a later point; PostgreSQL is the database for this 
 2. Scaffold Hono and implement schema validation.
 3. Add PostgreSQL connectivity, migrations, and preset CRUD endpoints.
 4. Verify persistence, round-trip values, and error behavior.
-5. Connect the synth's save, list, and recall controls.
+5. Finish missing-resource, rejected-update persistence, and safe server-error tests.
+6. Add tracked migrations and document the implemented contract with OpenAPI.
+7. Validate configuration, distinguish readiness from liveness, and verify shutdown
+   and persistence across service restarts.
+8. Resolve authentication, ownership, and hosting before remote deployment; document
+   and verify the chosen deployment workflow.
+9. Later, build the synth client and connect its save, list, and recall controls.
