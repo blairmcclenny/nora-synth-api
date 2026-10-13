@@ -1,6 +1,6 @@
-# Next learning task: synth client integration
+# Next learning task: missing-resource HTTP tests
 
-Updated October 12, 2026.
+Updated October 13, 2026.
 
 ## Completed persistence exercises
 
@@ -27,32 +27,46 @@ Updated October 12, 2026.
 
 ## Next exercise
 
-Connect the synth's save, list, and recall controls to the API. The planned
-backend validation and persistence testing exercises are complete.
+The learning goal is to finish the standalone API before connecting a frontend.
+The original CRUD persistence exercises are complete; the next lessons cover
+remaining error behavior, migrations, the API contract, and service operation.
 
-First step: locate the synth client source and document how its nine controls
-map to the API's normalized 0–1 parameter values. Include the envelope controls;
-attack, decay, and release currently represent normalized controls, not seconds.
-Do not guess engine mappings or change the schema contract silently.
+Add HTTP persistence tests for GET, PATCH, and PUT using a valid UUID that does
+not exist. Each request should return HTTP 404 with the existing `NOT_FOUND`
+error envelope. PATCH and PUT must not create a record when the ID is missing.
 
-Then work through the client flow in small steps:
+First step: inspect the dedicated deletion test in `src/app.persistence.test.ts`.
+It already demonstrates a missing-resource response after deletion. Use a
+server-created disposable preset, delete it, and exercise GET, PATCH, and PUT
+against that ID. Send valid bodies for PATCH and PUT so validation does not
+reject the requests before they reach the missing-resource logic. Keep cleanup
+in `finally` and leave unrelated test records intact.
 
-1. Save a complete snapshot with POST and display confirmation only after 201.
-2. Fetch the preset list with GET and display names while retaining preset IDs.
-3. Recall by ID with GET and apply all nine values together to the controls and engine.
-4. Show request errors and preserve the current settings when a save or recall fails.
-5. Verify that recalled values match the saved snapshot and survive an API restart.
+After those checks, verify that rejected updates preserve existing stored data
+and that unexpected errors produce a safe HTTP 500 response. These are separate
+small exercises; start with missing-resource behavior.
 
-Keep authentication, library ownership, and deployment decisions open until
-before remote hosting. The current API uses one shared local library.
-
-Backend regression checks remain:
+Verify with Docker PostgreSQL running:
 
 ```sh
 npm run test:db
 npm test
 npm run typecheck
 ```
+
+## Remaining API lessons
+
+1. Finish missing-resource, failed-update, and safe server-error coverage.
+2. Add a migration runner that records applied migrations and runs only pending SQL.
+3. Write an OpenAPI specification for the implemented routes and error envelopes.
+4. Validate startup configuration, add database readiness separately from liveness,
+   and verify graceful shutdown and persistence across service restarts.
+5. Decide authentication, library ownership, and hosting before remote deployment,
+   then document and verify the chosen deployment workflow.
+
+The current prototype has one shared local library. Authentication and ownership
+remain decisions to resolve; no account system is assumed by this roadmap.
+Frontend construction, engine mappings, and save/list/recall integration are deferred.
 
 ## Completed validation and HTTP rejection exercises
 
