@@ -227,9 +227,14 @@ HTTP persistence tests in `src/app.persistence.test.ts` also verify POST creatio
 with its `Location` header, GET recall, and PATCH rename followed by GET. The
 rename test checks that ID, creation timestamp, schema version, and parameters
 remain unchanged, then compares the full recalled preset with the PATCH response.
-Both HTTP tests delete their disposable records in `finally` and assert HTTP 204.
-Neither test command requires the development server to run. Successful PUT,
-list pagination, and deletion behavior still need dedicated HTTP coverage.
+HTTP persistence tests also cover complete PUT replacement with preserved ID and
+creation timestamp, list defaults and pagination, total counts and empty pages,
+and ordering by update timestamp with the UUID tie-breaker. Dedicated deletion
+coverage checks HTTP 204 with no body, followed by GET and repeated DELETE
+returning 404 with the error envelope. Every test cleans up only its disposable
+records in `finally`. Database test files run sequentially so their writes do not
+interfere with list totals. Neither test command requires the development server
+to run.
 
 ## Project structure
 
@@ -259,7 +264,7 @@ src/
 - [x] Add focused automated tests for validation and repository persistence.
 - [x] Test successful HTTP preset creation and recall against the test database.
 - [x] Test successful HTTP rename, preserved fields, and persisted recall.
-- [ ] Test successful HTTP replacement, listing, and deletion behavior.
+- [x] Test successful HTTP replacement, listing, and deletion behavior.
 - [ ] Connect the synth's save, list, and recall controls.
 - [ ] Decide authentication, ownership, and deployment before remote hosting.
 

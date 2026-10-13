@@ -9,7 +9,7 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "test": "node --import tsx --test src/schemas/*.test.ts src/app.test.ts",
-    "test:db": "node --import tsx --env-file=.env --test src/repositories/presets.test.ts src/app.persistence.test.ts"
+    "test:db": "node --import tsx --env-file=.env --test --test-concurrency=1 src/repositories/presets.test.ts src/app.persistence.test.ts"
   },
   "engines": {
     "node": ">=24"

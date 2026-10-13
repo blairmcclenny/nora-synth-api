@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { after, test } from 'node:test';
-import { CreatePresetInput } from './types/preset.js';
+import type { CreatePresetInput, Preset } from './types/preset.js';
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL;
 
@@ -190,5 +190,129 @@ test('a preset can be replaced and read back.', async () => {
     });
 
     assert.equal(deleted.status, 204);
+  }
+});
+
+const disposablePreset: CreatePresetInput = {
+  name: 'HTTP persistence fixture',
+  schemaVersion: 1,
+  parameters: {
+    filter: 0.1,
+    mood: 0.2,
+    movement: 0.3,
+    space: 0.4,
+    expression: 0.5,
+    attack: 0.6,
+    decay: 0.7,
+    sustain: 0.8,
+    release: 0.9,
+  },
+};
+
+test('listing returns ordered presets, pagination, and an independent total', async () => {
+  const baseline = await pool.query<{ total: string; newest: Date }>(`
+    SELECT COUNT(*) AS total,
+      date_trunc('milliseconds', GREATEST(MAX(updated_at), NOW())) AS newest
+    FROM presets;
+  `);
+  const total = Number(baseline.rows[0].total) + 3;
+  const newest = baseline.rows[0].newest.getTime();
+  const ids: string[] = [];
+
+  try {
+    for (let index = 0; index < 3; index++) {
+      const response = await app.request('/v1/presets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...disposablePreset, name: `List fixture ${index}` }),
+      });
+      const created = await response.json();
+      if (created.id) ids.push(created.id);
+      assert.equal(response.status, 201);
+
+      // Put our fixtures ahead of existing records. The last two share a timestamp
+      // so the test also checks the ascending UUID tie-breaker.
+      const updatedAt = new Date(newest + (index === 0 ? 60_000 : 120_000));
+      await pool.query('UPDATE presets SET updated_at = $1 WHERE id = $2', [
+        updatedAt.toISOString(),
+        created.id,
+      ]);
+    }
+
+    const expected: Preset[] = [];
+    for (const id of ids) {
+      const response = await app.request(`/v1/presets/${id}`);
+      assert.equal(response.status, 200);
+      expected.push(await response.json());
+    }
+    expected.sort((a, b) => {
+      const timestampOrder = Date.parse(b.updatedAt) - Date.parse(a.updatedAt);
+      return timestampOrder || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+    });
+
+    const defaultResponse = await app.request('/v1/presets');
+    const defaults = await defaultResponse.json();
+    assert.equal(defaultResponse.status, 200);
+    assert.equal(defaults.limit, 50);
+    assert.equal(defaults.offset, 0);
+    assert.equal(defaults.total, total);
+    assert.equal(defaults.items.length, Math.min(50, total));
+    assert.deepEqual(defaults.items.slice(0, 3), expected);
+
+    for (let offset = 0; offset < expected.length; offset++) {
+      const response = await app.request(`/v1/presets?limit=1&offset=${offset}`);
+      assert.equal(response.status, 200);
+      assert.deepEqual(await response.json(), {
+        items: [expected[offset]],
+        limit: 1,
+        offset,
+        total,
+      });
+    }
+
+    const emptyResponse = await app.request(`/v1/presets?limit=2&offset=${total}`);
+    assert.equal(emptyResponse.status, 200);
+    assert.deepEqual(await emptyResponse.json(), {
+      items: [],
+      limit: 2,
+      offset: total,
+      total,
+    });
+  } finally {
+    // Attempt every cleanup even if one deletion fails.
+    const responses = await Promise.all(
+      ids.map((id) => app.request(`/v1/presets/${id}`, { method: 'DELETE' })),
+    );
+    for (const response of responses) assert.equal(response.status, 204);
+  }
+});
+
+test('deletion returns no body and subsequent recall and deletion return 404', async () => {
+  const response = await app.request('/v1/presets', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(disposablePreset),
+  });
+  const created = await response.json();
+
+  try {
+    assert.equal(response.status, 201);
+
+    const deleted = await app.request(`/v1/presets/${created.id}`, {
+      method: 'DELETE',
+    });
+    assert.equal(deleted.status, 204);
+    assert.equal(await deleted.text(), '');
+
+    for (const method of ['GET', 'DELETE']) {
+      const missing = await app.request(`/v1/presets/${created.id}`, { method });
+      assert.equal(missing.status, 404);
+      assert.deepEqual(await missing.json(), {
+        error: { code: 'NOT_FOUND', message: 'Preset not found.' },
+      });
+    }
+  } finally {
+    // The successful path already deleted this record; clean it up on failure too.
+    await pool.query('DELETE FROM presets WHERE id = $1', [created.id]);
   }
 });
