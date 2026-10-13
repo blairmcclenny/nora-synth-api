@@ -316,3 +316,50 @@ test('deletion returns no body and subsequent recall and deletion return 404', a
     await pool.query('DELETE FROM presets WHERE id = $1', [created.id]);
   }
 });
+
+test('missing presets cannot be recalled, renamed, or replaced', async () => {
+  const response = await app.request('/v1/presets', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(disposablePreset),
+  });
+  const created = await response.json();
+
+  try {
+    assert.equal(response.status, 201);
+    const deleted = await app.request(`/v1/presets/${created.id}`, {
+      method: 'DELETE',
+    });
+    assert.equal(deleted.status, 204);
+
+    const requests: RequestInit[] = [
+      { method: 'GET' },
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: 'Missing preset rename' }),
+      },
+      {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(disposablePreset),
+      },
+    ];
+
+    for (const request of requests) {
+      const missing = await app.request(`/v1/presets/${created.id}`, request);
+      assert.equal(missing.status, 404, `${request.method} must return 404`);
+      assert.deepEqual(await missing.json(), {
+        error: { code: 'NOT_FOUND', message: 'Preset not found.' },
+      });
+
+      // Check storage directly: a 404 alone does not prove there was no insert.
+      const stored = await pool.query('SELECT id FROM presets WHERE id = $1', [
+        created.id,
+      ]);
+      assert.equal(stored.rows.length, 0);
+    }
+  } finally {
+    await pool.query('DELETE FROM presets WHERE id = $1', [created.id]);
+  }
+});

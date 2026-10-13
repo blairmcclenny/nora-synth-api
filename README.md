@@ -268,7 +268,7 @@ to later. Building the synth client is deferred until after the API lessons.
 - [x] Test successful HTTP preset creation and recall against the test database.
 - [x] Test successful HTTP rename, preserved fields, and persisted recall.
 - [x] Test successful HTTP replacement, listing, and deletion behavior.
-- [ ] Test missing-resource GET, PATCH, and PUT responses.
+- [x] Test missing-resource GET, PATCH, and PUT responses.
 - [ ] Verify rejected updates leave persisted presets unchanged.
 - [ ] Test safe HTTP 500 responses without exposing internal error details.
 - [ ] Add a migration runner that tracks and applies pending SQL migrations.
