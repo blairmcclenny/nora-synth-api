@@ -253,6 +253,9 @@ src/
 
 ## Learning roadmap
 
+The main learning goal is to finish a standalone API that a frontend can connect
+to later. Building the synth client is deferred until after the API lessons.
+
 - [x] Start Hono and respond to a health request.
 - [x] Define a preset and validate requests with Zod.
 - [x] Connect PostgreSQL and write the first migration.
@@ -265,8 +268,18 @@ src/
 - [x] Test successful HTTP preset creation and recall against the test database.
 - [x] Test successful HTTP rename, preserved fields, and persisted recall.
 - [x] Test successful HTTP replacement, listing, and deletion behavior.
-- [ ] Connect the synth's save, list, and recall controls.
-- [ ] Decide authentication, ownership, and deployment before remote hosting.
+- [ ] Test missing-resource GET, PATCH, and PUT responses.
+- [ ] Verify rejected updates leave persisted presets unchanged.
+- [ ] Test safe HTTP 500 responses without exposing internal error details.
+- [ ] Add a migration runner that tracks and applies pending SQL migrations.
+- [ ] Document requests, responses, and errors in an OpenAPI specification.
+- [ ] Validate startup configuration and distinguish database readiness from liveness.
+- [ ] Verify graceful shutdown and persistence across service restarts.
+- [ ] Decide authentication, ownership, and hosting before remote deployment.
+- [ ] Document and verify the chosen deployment workflow.
+
+Frontend work comes later: map synth controls to normalized values, then connect
+save, list, and recall to the completed API.
 
 The API currently enforces normalized 0–1 values, including the envelope controls. Document how those values map to the synth engine before client integration. SQLite remains a future exploration.
 
