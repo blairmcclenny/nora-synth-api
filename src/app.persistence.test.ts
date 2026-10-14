@@ -363,3 +363,36 @@ test('missing presets cannot be recalled, renamed, or replaced', async () => {
     await pool.query('DELETE FROM presets WHERE id = $1', [created.id]);
   }
 });
+
+test('rejected PATCH and PUT requests leave the stored preset unchanged', async () => {
+  const response = await app.request('/v1/presets', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(disposablePreset),
+  });
+  const created = await response.json();
+  try {
+    assert.equal(response.status, 201);
+    for (const method of ['PATCH', 'PUT']) {
+      const invalidBody = method === 'PATCH' ? { name: '  ' } : {
+        ...disposablePreset,
+        name: 'Must not be saved',
+        parameters: { ...disposablePreset.parameters, filter: 2 },
+      };
+      for (const body of [JSON.stringify(invalidBody), '{']) {
+        const rejected = await app.request(`/v1/presets/${created.id}`, {
+          method,
+          headers: { 'Content-Type': 'application/json' },
+          body,
+        });
+        assert.equal(rejected.status, 400);
+        const retrieved = await app.request(`/v1/presets/${created.id}`);
+        assert.equal(retrieved.status, 200);
+        assert.deepEqual(await retrieved.json(), created);
+      }
+    }
+  } finally {
+    const deleted = await app.request(`/v1/presets/${created.id}`, { method: 'DELETE' });
+    assert.equal(deleted.status, 204);
+  }
+});

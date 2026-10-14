@@ -22,7 +22,7 @@ These are starting assumptions, open to revision:
 
 - TypeScript with Hono on Node.js, using npm.
 - JSON REST API under `/v1`.
-- A single preset library for the initial local prototype. Decide authentication and ownership before remote deployment.
+- A single shared preset library in the current local prototype. The next phase is a private MVP with authentication and a stable owner identity, designed for eventual multiple users. Decide the credential mechanism and migrate existing records to an explicit owner before remote deployment.
 - Every parameter is a normalized number from `0` to `1`, inclusive. The synth maps these values to its audio engine. Attack, decay, and release are normalized controls rather than seconds in this draft.
 - No implicit parameter defaults when saving: the client must supply a complete snapshot.
 
@@ -185,6 +185,11 @@ User accounts and private libraries, tags and search, favorites, public sharing,
 Explore SQLite separately at a later point; PostgreSQL is the database for this project.
 
 ## Decisions to resolve next
+
+Prioritize authentication, ownership, and hosting. The private MVP should preserve
+a path to multiple users: derive owner identity from verified credentials and
+scope every preset operation to that owner. Engine mappings remain deferred until
+frontend integration.
 
 1. Are all nine controls continuous 0–1 values, or do any need physical units or discrete options?
 2. Which deployment environment will host the Node.js service?
