@@ -55,6 +55,9 @@ This is a learning project. Default to coaching so the user can write the code.
 
 ## Validate, commit, and push
 
+- Handle routine formatting choices without prompting the user, including single
+  versus double quotes and optional semicolons. Follow the project's configured
+  formatter or surrounding style, and resolve these details before committing.
 - Before every commit, format all changed files to match the surrounding project
   style. Use the project's configured formatter when available; otherwise review
   indentation, semicolons, trailing commas, and whitespace manually. Run
