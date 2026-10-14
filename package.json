@@ -6,10 +6,12 @@
   "scripts": {
     "dev": "tsx watch --env-file=.env src/server.ts",
     "typecheck": "tsc --noEmit",
-    "build": "tsc",
+    "build": "tsc && mkdir -p dist/db/migrations && cp src/db/migrations/*.sql dist/db/migrations/",
     "start": "node dist/server.js",
-    "test": "node --import tsx --test src/schemas/*.test.ts src/app.test.ts",
-    "test:db": "node --import tsx --env-file=.env --test --test-concurrency=1 src/repositories/presets.test.ts src/app.persistence.test.ts"
+    "test": "node --import tsx --test src/schemas/*.test.ts src/app.test.ts src/app.errors.test.ts",
+    "test:db": "node --import tsx --env-file=.env --test --test-concurrency=1 src/repositories/presets.test.ts src/app.persistence.test.ts src/db/migration-runner.test.ts",
+    "db:migrate": "tsx --env-file=.env src/db/migrate.ts",
+    "db:migrate:test": "tsx --env-file=.env src/db/migrate.ts --test-db"
   },
   "engines": {
     "node": ">=24"
