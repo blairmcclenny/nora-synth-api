@@ -1,6 +1,6 @@
 # Next learning task: authentication and preset ownership
 
-Updated October 13, 2026.
+Updated October 14, 2026.
 
 ## Completed persistence exercises
 
@@ -51,10 +51,29 @@ First, distinguish the two responsibilities:
 - Authentication identifies who is calling the API.
 - Ownership determines which presets that identity can access or change.
 
-The first guided step is to choose how callers obtain and send credentials.
-Compare a private MVP credential mapped to a single stable owner with a managed
-identity provider that issues verified tokens. Avoid building password storage
-as a prerequisite for this learning project. Make the choice before adding code.
+Chosen credential flow: a single private secret sent in the Authorization header
+as a Bearer token, mapped on the server to a stable owner identity. Secret rotation
+must not change that identity. Password storage is outside this exercise.
+
+### Stopping point: October 14
+
+- `requireAuth(expectedSecret)` returns middleware that verifies Bearer credentials.
+- Missing, malformed, or incorrect credentials return the generic JSON 401 envelope
+  without reaching the route. Valid credentials reach the route.
+- Secrets are compared using equal-length SHA-256 digests and `timingSafeEqual`.
+  Empty or whitespace-containing configured secrets are rejected.
+- Isolated middleware tests use fake credentials, with no database or network port.
+  `npm test` includes these tests; all 80 tests and typecheck passed.
+- The middleware is not yet connected to the preset routes. Runtime secret
+  configuration and trusted owner identity remain to be added.
+- Current branch: `codex/verify-private-credential`, based on the unmerged
+  `codex/auth-preset-ownership` branch. Preserve this dependency until merged.
+
+Next guided step: accept a stable owner ID alongside the configured secret, attach
+it to Hono's typed request context only after successful verification, and test that
+the protected route receives the trusted identity. Then configure the runtime
+credential and protect both the preset collection and individual preset routes,
+keeping `/health` public and updating HTTP tests to send fake valid credentials.
 
 Then implement in small steps:
 
