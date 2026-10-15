@@ -1,6 +1,6 @@
 # Next learning task: authentication and preset ownership
 
-Updated October 14, 2026.
+Updated October 15, 2026.
 
 ## Completed persistence exercises
 
@@ -69,11 +69,17 @@ must not change that identity. Password storage is outside this exercise.
 - Current branch: `codex/verify-private-credential`, based on the unmerged
   `codex/auth-preset-ownership` branch. Preserve this dependency until merged.
 
-Next guided step: accept a stable owner ID alongside the configured secret, attach
-it to Hono's typed request context only after successful verification, and test that
-the protected route receives the trusted identity. Then configure the runtime
-credential and protect both the preset collection and individual preset routes,
-keeping `/health` public and updating HTTP tests to send fake valid credentials.
+Completed October 15: trusted owner context and runtime route authentication.
+`createApp({ secret, ownerId })` accepts explicit credentials; the server loads
+`AUTH_SECRET` and `AUTH_OWNER_ID`. Both preset route patterns require valid
+credentials before validation or persistence, while `/health` stays public.
+HTTP tests supply fake credentials, including persistence tests. All 87 unit/HTTP
+tests, 17 database tests, typecheck, and build passed. Work is on
+`codex/protect-preset-routes`.
+
+Next step: migrate presets to explicit owners and scope repository operations to
+the trusted request identity. Existing presets must be assigned explicitly to
+the MVP owner. Authentication alone currently protects a shared library.
 
 Then implement in small steps:
 
