@@ -2,7 +2,14 @@ import assert from 'node:assert/strict';
 import { after, mock, test } from 'node:test';
 
 process.env.DATABASE_URL = 'postgresql://unused:unused@127.0.0.1:1/unused';
-const { default: app } = await import('./app.js');
+const { createApp } = await import('./app.js');
+const app = createApp({ secret: 'test-secret', ownerId: 'test-owner' });
+
+function authenticatedRequest(path: string, init: RequestInit = {}) {
+  const headers = new Headers(init.headers);
+  headers.set('Authorization', 'Bearer test-secret');
+  return app.request(path, { ...init, headers });
+}
 const { pool } = await import('./db/pool.js');
 after(async () => { await pool.end(); });
 
@@ -20,7 +27,7 @@ for (const method of ['GET', 'POST', 'PATCH', 'PUT', 'DELETE']) {
     const query = mock.method(pool, 'query', async () => { throw internal; });
     const log = mock.method(console, 'error', () => {});
     try {
-      const response = await app.request(
+      const response = await authenticatedRequest(
         method === 'POST' ? '/v1/presets' : '/v1/presets/123e4567-e89b-42d3-a456-426614174000',
         {
           method,

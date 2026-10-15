@@ -16,7 +16,14 @@ if (dataBaseUrl.pathname !== '/nora_synth_test') {
 
 process.env.DATABASE_URL = testDatabaseUrl;
 
-const { default: app } = await import('./app.js');
+const { createApp } = await import('./app.js');
+const app = createApp({ secret: 'test-secret', ownerId: 'test-owner' });
+
+function authenticatedRequest(path: string, init: RequestInit = {}) {
+  const headers = new Headers(init.headers);
+  headers.set('Authorization', 'Bearer test-secret');
+  return app.request(path, { ...init, headers });
+}
 const { pool } = await import('./db/pool.js');
 
 after(async () => {
@@ -40,7 +47,7 @@ test('a preset can be created and read back', async () => {
     },
   };
 
-  const response = await app.request('/v1/presets', {
+  const response = await authenticatedRequest('/v1/presets', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(preset),
@@ -53,13 +60,13 @@ test('a preset can be created and read back', async () => {
     assert.equal(created.name, preset.name);
     assert.deepEqual(created.parameters, preset.parameters);
 
-    const retrievedResponse = await app.request(`/v1/presets/${created.id}`);
+    const retrievedResponse = await authenticatedRequest(`/v1/presets/${created.id}`);
     const retrieved = await retrievedResponse.json();
 
     assert.equal(retrievedResponse.status, 200);
     assert.deepEqual(retrieved, created);
   } finally {
-    const deleted = await app.request(`/v1/presets/${created.id}`, {
+    const deleted = await authenticatedRequest(`/v1/presets/${created.id}`, {
       method: 'DELETE',
     });
 
@@ -84,7 +91,7 @@ test('a preset can be renamed and read back.', async () => {
     },
   };
 
-  const response = await app.request('/v1/presets', {
+  const response = await authenticatedRequest('/v1/presets', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(preset),
@@ -94,7 +101,7 @@ test('a preset can be renamed and read back.', async () => {
   try {
     assert.equal(response.status, 201);
 
-    const updatedResponse = await app.request(`/v1/presets/${created.id}`, {
+    const updatedResponse = await authenticatedRequest(`/v1/presets/${created.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: 'Renamed preset' }),
@@ -108,13 +115,13 @@ test('a preset can be renamed and read back.', async () => {
     assert.equal(updated.schemaVersion, created.schemaVersion);
     assert.deepEqual(updated.parameters, created.parameters);
 
-    const retrievedResponse = await app.request(`/v1/presets/${updated.id}`);
+    const retrievedResponse = await authenticatedRequest(`/v1/presets/${updated.id}`);
     const retrieved = await retrievedResponse.json();
 
     assert.equal(retrievedResponse.status, 200);
     assert.deepEqual(retrieved, updated);
   } finally {
-    const deleted = await app.request(`/v1/presets/${created.id}`, {
+    const deleted = await authenticatedRequest(`/v1/presets/${created.id}`, {
       method: 'DELETE',
     });
 
@@ -155,7 +162,7 @@ test('a preset can be replaced and read back.', async () => {
     },
   };
 
-  const response = await app.request('/v1/presets', {
+  const response = await authenticatedRequest('/v1/presets', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(preset),
@@ -165,7 +172,7 @@ test('a preset can be replaced and read back.', async () => {
   try {
     assert.equal(response.status, 201);
 
-    const replacedResponse = await app.request(`/v1/presets/${created.id}`, {
+    const replacedResponse = await authenticatedRequest(`/v1/presets/${created.id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(replacement),
@@ -179,13 +186,13 @@ test('a preset can be replaced and read back.', async () => {
     assert.equal(replaced.name, replacement.name);
     assert.deepEqual(replaced.parameters, replacement.parameters);
 
-    const retrievedResponse = await app.request(`/v1/presets/${replaced.id}`);
+    const retrievedResponse = await authenticatedRequest(`/v1/presets/${replaced.id}`);
     const retrieved = await retrievedResponse.json();
 
     assert.equal(retrievedResponse.status, 200);
     assert.deepEqual(retrieved, replaced);
   } finally {
-    const deleted = await app.request(`/v1/presets/${created.id}`, {
+    const deleted = await authenticatedRequest(`/v1/presets/${created.id}`, {
       method: 'DELETE',
     });
 
@@ -221,7 +228,7 @@ test('listing returns ordered presets, pagination, and an independent total', as
 
   try {
     for (let index = 0; index < 3; index++) {
-      const response = await app.request('/v1/presets', {
+      const response = await authenticatedRequest('/v1/presets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...disposablePreset, name: `List fixture ${index}` }),
@@ -241,7 +248,7 @@ test('listing returns ordered presets, pagination, and an independent total', as
 
     const expected: Preset[] = [];
     for (const id of ids) {
-      const response = await app.request(`/v1/presets/${id}`);
+      const response = await authenticatedRequest(`/v1/presets/${id}`);
       assert.equal(response.status, 200);
       expected.push(await response.json());
     }
@@ -250,7 +257,7 @@ test('listing returns ordered presets, pagination, and an independent total', as
       return timestampOrder || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
     });
 
-    const defaultResponse = await app.request('/v1/presets');
+    const defaultResponse = await authenticatedRequest('/v1/presets');
     const defaults = await defaultResponse.json();
     assert.equal(defaultResponse.status, 200);
     assert.equal(defaults.limit, 50);
@@ -260,7 +267,7 @@ test('listing returns ordered presets, pagination, and an independent total', as
     assert.deepEqual(defaults.items.slice(0, 3), expected);
 
     for (let offset = 0; offset < expected.length; offset++) {
-      const response = await app.request(`/v1/presets?limit=1&offset=${offset}`);
+      const response = await authenticatedRequest(`/v1/presets?limit=1&offset=${offset}`);
       assert.equal(response.status, 200);
       assert.deepEqual(await response.json(), {
         items: [expected[offset]],
@@ -270,7 +277,7 @@ test('listing returns ordered presets, pagination, and an independent total', as
       });
     }
 
-    const emptyResponse = await app.request(`/v1/presets?limit=2&offset=${total}`);
+    const emptyResponse = await authenticatedRequest(`/v1/presets?limit=2&offset=${total}`);
     assert.equal(emptyResponse.status, 200);
     assert.deepEqual(await emptyResponse.json(), {
       items: [],
@@ -281,14 +288,14 @@ test('listing returns ordered presets, pagination, and an independent total', as
   } finally {
     // Attempt every cleanup even if one deletion fails.
     const responses = await Promise.all(
-      ids.map((id) => app.request(`/v1/presets/${id}`, { method: 'DELETE' })),
+      ids.map((id) => authenticatedRequest(`/v1/presets/${id}`, { method: 'DELETE' })),
     );
     for (const response of responses) assert.equal(response.status, 204);
   }
 });
 
 test('deletion returns no body and subsequent recall and deletion return 404', async () => {
-  const response = await app.request('/v1/presets', {
+  const response = await authenticatedRequest('/v1/presets', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(disposablePreset),
@@ -298,14 +305,14 @@ test('deletion returns no body and subsequent recall and deletion return 404', a
   try {
     assert.equal(response.status, 201);
 
-    const deleted = await app.request(`/v1/presets/${created.id}`, {
+    const deleted = await authenticatedRequest(`/v1/presets/${created.id}`, {
       method: 'DELETE',
     });
     assert.equal(deleted.status, 204);
     assert.equal(await deleted.text(), '');
 
     for (const method of ['GET', 'DELETE']) {
-      const missing = await app.request(`/v1/presets/${created.id}`, { method });
+      const missing = await authenticatedRequest(`/v1/presets/${created.id}`, { method });
       assert.equal(missing.status, 404);
       assert.deepEqual(await missing.json(), {
         error: { code: 'NOT_FOUND', message: 'Preset not found.' },
@@ -318,7 +325,7 @@ test('deletion returns no body and subsequent recall and deletion return 404', a
 });
 
 test('missing presets cannot be recalled, renamed, or replaced', async () => {
-  const response = await app.request('/v1/presets', {
+  const response = await authenticatedRequest('/v1/presets', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(disposablePreset),
@@ -327,7 +334,7 @@ test('missing presets cannot be recalled, renamed, or replaced', async () => {
 
   try {
     assert.equal(response.status, 201);
-    const deleted = await app.request(`/v1/presets/${created.id}`, {
+    const deleted = await authenticatedRequest(`/v1/presets/${created.id}`, {
       method: 'DELETE',
     });
     assert.equal(deleted.status, 204);
@@ -347,7 +354,7 @@ test('missing presets cannot be recalled, renamed, or replaced', async () => {
     ];
 
     for (const request of requests) {
-      const missing = await app.request(`/v1/presets/${created.id}`, request);
+      const missing = await authenticatedRequest(`/v1/presets/${created.id}`, request);
       assert.equal(missing.status, 404, `${request.method} must return 404`);
       assert.deepEqual(await missing.json(), {
         error: { code: 'NOT_FOUND', message: 'Preset not found.' },
@@ -365,7 +372,7 @@ test('missing presets cannot be recalled, renamed, or replaced', async () => {
 });
 
 test('rejected PATCH and PUT requests leave the stored preset unchanged', async () => {
-  const response = await app.request('/v1/presets', {
+  const response = await authenticatedRequest('/v1/presets', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(disposablePreset),
@@ -380,19 +387,19 @@ test('rejected PATCH and PUT requests leave the stored preset unchanged', async 
         parameters: { ...disposablePreset.parameters, filter: 2 },
       };
       for (const body of [JSON.stringify(invalidBody), '{']) {
-        const rejected = await app.request(`/v1/presets/${created.id}`, {
+        const rejected = await authenticatedRequest(`/v1/presets/${created.id}`, {
           method,
           headers: { 'Content-Type': 'application/json' },
           body,
         });
         assert.equal(rejected.status, 400);
-        const retrieved = await app.request(`/v1/presets/${created.id}`);
+        const retrieved = await authenticatedRequest(`/v1/presets/${created.id}`);
         assert.equal(retrieved.status, 200);
         assert.deepEqual(await retrieved.json(), created);
       }
     }
   } finally {
-    const deleted = await app.request(`/v1/presets/${created.id}`, { method: 'DELETE' });
+    const deleted = await authenticatedRequest(`/v1/presets/${created.id}`, { method: 'DELETE' });
     assert.equal(deleted.status, 204);
   }
 });

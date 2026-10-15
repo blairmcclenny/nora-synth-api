@@ -1,5 +1,10 @@
 import { serve } from '@hono/node-server';
-import app from './app.js';
+import { createApp } from './app.js';
+
+const app = createApp({
+  secret: process.env.AUTH_SECRET ?? '',
+  ownerId: process.env.AUTH_OWNER_ID ?? '',
+});
 
 // The Node adapter lets our Hono app receive HTTP requests.
 const server = serve(
