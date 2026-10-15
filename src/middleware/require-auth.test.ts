@@ -1,13 +1,13 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { Hono } from 'hono';
-import { requireAuth } from './require-auth.js';
+import { requireAuth, type AuthEnv } from './require-auth.js';
 
 test('missing Authorization returns 401 without reaching the route', async () => {
-  const app = new Hono();
+  const app = new Hono<AuthEnv>();
   let routeReached = false;
 
-  app.use('/protected', requireAuth('test-secret'));
+  app.use('/protected', requireAuth('test-secret', 'test-owner'));
   app.get('/protected', (c) => {
     routeReached = true;
     return c.json({ status: 'ok' });
@@ -42,10 +42,10 @@ for (const authorization of [
   'Bearer test-secret, Bearer test-secret',
 ]) {
   test(`invalid Authorization ${JSON.stringify(authorization)} returns 401 without reaching the route`, async () => {
-    const app = new Hono();
+    const app = new Hono<AuthEnv>();
     let routeReached = false;
 
-    app.use('/protected', requireAuth('test-secret'));
+    app.use('/protected', requireAuth('test-secret', 'test-owner'));
     app.get('/protected', (c) => {
       routeReached = true;
       return c.json({ status: 'ok' });
@@ -72,13 +72,13 @@ for (const authorization of [
 
 for (const authorization of ['Bearer test-secret', 'bearer test-secret', 'Bearer   test-secret']) {
   test(`valid Authorization ${JSON.stringify(authorization)} reaches the route`, async () => {
-    const app = new Hono();
+    const app = new Hono<AuthEnv>();
     let routeReached = false;
 
-    app.use('/protected', requireAuth('test-secret'));
+    app.use('/protected', requireAuth('test-secret', 'test-owner'));
     app.get('/protected', (c) => {
       routeReached = true;
-      return c.json({ status: 'ok' });
+      return c.json({ ownerId: c.get('ownerId') });
     });
 
     const response = await app.request('/protected', {
@@ -86,13 +86,13 @@ for (const authorization of ['Bearer test-secret', 'bearer test-secret', 'Bearer
     });
 
     assert.equal(response.status, 200);
-    assert.deepEqual(await response.json(), { status: 'ok' });
+    assert.deepEqual(await response.json(), { ownerId: 'test-owner' });
     assert.equal(routeReached, true);
   });
 }
 
 test('invalid secret configuration is rejected when middleware is created', () => {
   for (const secret of ['', ' ', 'test secret', 'test-secret\n']) {
-    assert.throws(() => requireAuth(secret), /Authentication secret/);
+    assert.throws(() => requireAuth(secret, 'test-owner'), /Authentication secret/);
   }
 });

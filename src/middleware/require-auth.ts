@@ -1,7 +1,13 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { createMiddleware } from 'hono/factory';
 
-export function requireAuth(expectedSecret: string) {
+export type AuthEnv = {
+  Variables: {
+    ownerId: string;
+  };
+};
+
+export function requireAuth(expectedSecret: string, ownerId: string) {
   if (!expectedSecret || /\s/.test(expectedSecret)) {
     throw new Error('Authentication secret must be nonempty and contain no whitespace.');
   }
@@ -9,7 +15,7 @@ export function requireAuth(expectedSecret: string) {
   // Equal-length digests allow timingSafeEqual to compare any token length.
   const expectedDigest = createHash('sha256').update(expectedSecret).digest();
 
-  return createMiddleware(async (c, next) => {
+  return createMiddleware<AuthEnv>(async (c, next) => {
     const authorization = c.req.header('Authorization');
     const token = /^Bearer +(\S+)$/i.exec(authorization ?? '')?.[1];
     const valid = token !== undefined && timingSafeEqual(
@@ -29,6 +35,7 @@ export function requireAuth(expectedSecret: string) {
       );
     }
 
+    c.set('ownerId', ownerId);
     await next();
   });
 }
