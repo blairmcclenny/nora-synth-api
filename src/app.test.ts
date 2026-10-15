@@ -4,7 +4,14 @@ import { after, test, mock } from 'node:test';
 // Imports run after this assignment: app.ts imports the database pool.
 // This address is deliberately unusable; these tests must never query it.
 process.env.DATABASE_URL = 'postgresql://unused:unused@127.0.0.1:1/unused';
-const { default: app } = await import('./app.js');
+const { createApp } = await import('./app.js');
+const app = createApp({ secret: 'test-secret', ownerId: 'test-owner' });
+
+function authenticatedRequest(path: string, init: RequestInit = {}) {
+  const headers = new Headers(init.headers);
+  headers.set('Authorization', 'Bearer test-secret');
+  return app.request(path, { ...init, headers });
+}
 const { pool } = await import('./db/pool.js');
 const query = mock.method(pool, 'query', () => {
   assert.fail('Rejected requests must not reach the database');
@@ -41,7 +48,7 @@ test('GET /health returns service liveness without querying the database', async
 
 for (const method of ['GET', 'DELETE', 'PATCH', 'PUT']) {
   test(`${method} rejects an invalid preset UUID`, async () => {
-    const response = await app.request('/v1/presets/not-a-uuid', {
+    const response = await authenticatedRequest('/v1/presets/not-a-uuid', {
       method,
       ...(method === 'PATCH' || method === 'PUT' ? {
         headers: { 'Content-Type': 'application/json' },
@@ -56,14 +63,14 @@ for (const method of ['POST', 'PATCH', 'PUT']) {
   const path = method === 'POST' ? '/v1/presets' : `/v1/presets/${id}`;
   test(`${method} rejects missing or unsupported content types`, async () => {
     for (const headers of [new Headers(), new Headers({ 'Content-Type': 'text/plain' })]) {
-      await expectError(await app.request(path, {
+      await expectError(await authenticatedRequest(path, {
         method, headers, body: '{}',
       }), 415, 'UNSUPPORTED_MEDIA_TYPE');
     }
   });
 
   test(`${method} rejects malformed JSON`, async () => {
-    await expectError(await app.request(path, {
+    await expectError(await authenticatedRequest(path, {
       method, headers: { 'Content-Type': 'application/json' }, body: '{',
     }), 400, 'INVALID_JSON');
   });
@@ -72,7 +79,7 @@ for (const method of ['POST', 'PATCH', 'PUT']) {
     const body = method === 'PATCH' ? { name: '  ' } : {
       ...preset, parameters: { ...preset.parameters, filter: 1.1 },
     };
-    const error = await expectError(await app.request(path, {
+    const error = await expectError(await authenticatedRequest(path, {
       method, headers: { 'Content-Type': 'application/json; charset=utf-8' },
       body: JSON.stringify(body),
     }), 400, 'VALIDATION_ERROR');
@@ -84,8 +91,38 @@ for (const method of ['POST', 'PATCH', 'PUT']) {
 test('GET list rejects invalid pagination and reports its field', async () => {
   for (const field of ['limit', 'offset']) {
     const body = await expectError(
-      await app.request(`/v1/presets?${field}=-1`), 400, 'VALIDATION_ERROR',
+      await authenticatedRequest(`/v1/presets?${field}=-1`), 400, 'VALIDATION_ERROR',
     );
     assert.ok(body.error.details.some((issue: { path: string }) => issue.path === field));
+  }
+});
+
+for (const [method, path] of [
+  ['GET', '/v1/presets'],
+  ['POST', '/v1/presets'],
+  ['GET', `/v1/presets/${id}`],
+  ['PATCH', `/v1/presets/${id}`],
+  ['PUT', `/v1/presets/${id}`],
+  ['DELETE', `/v1/presets/${id}`],
+]) {
+  test(`${method} ${path} requires valid credentials before validation or persistence`, async () => {
+    for (const authorization of [undefined, 'Basic test-secret', 'Bearer wrong-secret']) {
+      const headers = new Headers();
+      if (authorization !== undefined) headers.set('Authorization', authorization);
+      const response = await app.request(path, { method, headers });
+      const body = await expectError(response, 401, 'UNAUTHORIZED');
+      assert.deepEqual(body, {
+        error: { code: 'UNAUTHORIZED', message: 'Valid credentials are required.' },
+      });
+    }
+  });
+}
+
+test('app creation rejects invalid authentication configuration', () => {
+  for (const secret of ['', 'test secret']) {
+    assert.throws(() => createApp({ secret, ownerId: 'test-owner' }), /Authentication secret/);
+  }
+  for (const ownerId of ['', ' ', ' test-owner', 'test-owner\n']) {
+    assert.throws(() => createApp({ secret: 'test-secret', ownerId }), /Authentication owner ID/);
   }
 });

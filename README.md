@@ -36,6 +36,8 @@ project-root `.env` (the following values are placeholders):
 ```dotenv
 DATABASE_URL=postgresql://USER:PASSWORD@localhost:5432/nora_synth
 TEST_DATABASE_URL=postgresql://USER:PASSWORD@localhost:5432/nora_synth_test
+AUTH_SECRET=REPLACE_WITH_A_LONG_RANDOM_SECRET
+AUTH_OWNER_ID=private-mvp-owner
 ```
 
 Preserve existing credentials; never print or commit `.env` or actual connection
@@ -105,6 +107,8 @@ file contents. Migration files must contain SQL without their own transaction
 commands. For the compiled runner, `npm run build` copies SQL into
 `dist/db/migrations`; run `node --env-file=.env dist/db/migrate.js` locally.
 
+Set `AUTH_SECRET` and `AUTH_OWNER_ID` in your ignored `.env` before starting the server. The secret must be nonempty and contain no whitespace; the owner ID must be nonempty with no surrounding whitespace. Startup rejects invalid configuration. Never commit real secrets.
+
 Start the development server:
 
 ```sh
@@ -133,12 +137,15 @@ Expect HTTP 200 and `{"service":"nora-synth-api","status":"ok"}`. The health rou
 | PUT | `/v1/presets/:id` | Replace a complete preset | 200, full preset |
 | DELETE | `/v1/presets/:id` | Delete a preset by UUID | 204, no response body |
 
-Renaming and complete preset replacement with PUT are supported. PUT accepts the same complete body as POST and returns 200, or 404 for a missing preset. The current prototype has a single shared preset library and no authentication.
+Renaming and complete preset replacement with PUT are supported. PUT accepts the same complete body as POST and returns 200, or 404 for a missing preset. Every preset endpoint requires `Authorization: Bearer <AUTH_SECRET>`. The server maps this secret to the stable `AUTH_OWNER_ID`; keep that ID unchanged when rotating the secret. Missing or invalid credentials return a generic JSON 401 with `UNAUTHORIZED` before validation or database access. `/health` remains public. Presets still share one library until the ownership migration is implemented.
 
 ### Save a preset
 
+The curl examples assume `AUTH_SECRET` is exported in your shell. The server reads `.env`, but curl does not load it automatically.
+
 ```sh
 curl -i "http://localhost:3000/v1/presets" \
+  -H "Authorization: Bearer $AUTH_SECRET" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "Soft Motion",
@@ -165,6 +172,7 @@ Names are trimmed and must contain 1–100 characters. `schemaVersion` must be `
 
 ```sh
 curl -i -G "http://localhost:3000/v1/presets" \
+  -H "Authorization: Bearer $AUTH_SECRET" \
   --data-urlencode "limit=1" \
   --data-urlencode "offset=0"
 ```
@@ -176,7 +184,8 @@ Results are ordered by `updated_at` descending, then `id` ascending. `total` cou
 To recall a preset, replace `PRESET_ID` with the UUID returned when saving or listing:
 
 ```sh
-curl -i "http://localhost:3000/v1/presets/PRESET_ID"
+curl -i "http://localhost:3000/v1/presets/PRESET_ID" \
+  -H "Authorization: Bearer $AUTH_SECRET"
 ```
 
 Invalid preset data, IDs, or pagination values return HTTP 400 with a `VALIDATION_ERROR` JSON error envelope. Malformed JSON returns 400 with `INVALID_JSON`; a valid but missing preset ID returns 404 with `NOT_FOUND`. Unexpected server errors return 500 with `INTERNAL_ERROR` without exposing internal details.
@@ -187,6 +196,7 @@ Replace `PRESET_ID` with an existing preset's UUID:
 
 ```sh
 curl -i -X PATCH "http://localhost:3000/v1/presets/PRESET_ID" \
+  -H "Authorization: Bearer $AUTH_SECRET" \
   -H "Content-Type: application/json" \
   -d '{"name":"Soft Motion II"}'
 ```
@@ -200,7 +210,8 @@ Invalid names, extra fields, or invalid UUIDs return 400 with `VALIDATION_ERROR`
 Replace `PRESET_ID` with the UUID of a preset you want to delete:
 
 ```sh
-curl -i -X DELETE "http://localhost:3000/v1/presets/PRESET_ID"
+curl -i -X DELETE "http://localhost:3000/v1/presets/PRESET_ID" \
+  -H "Authorization: Bearer $AUTH_SECRET"
 ```
 
 A successful deletion returns HTTP 204 with no response body. Recalling that preset or deleting the same ID again returns 404 with `NOT_FOUND`. An invalid UUID returns 400 with `VALIDATION_ERROR`. Errors use the same `{ "error": { "code": "...", "message": "..." } }` envelope as the other routes.
@@ -216,7 +227,7 @@ A successful deletion returns HTTP 204 with no response body. Recalling that pre
 | `npm run db:migrate:test` | Apply pending test database migrations |
 | `npm run typecheck` | Check TypeScript types without generating files |
 | `npm run build` | Compile TypeScript and copy SQL migrations into `dist/` |
-| `npm start` | Run the compiled server; requires `DATABASE_URL` in the environment |
+| `npm start` | Run the compiled server; requires `DATABASE_URL`, `AUTH_SECRET`, and `AUTH_OWNER_ID` in the environment |
 
 To run the compiled server with your local `.env`:
 
