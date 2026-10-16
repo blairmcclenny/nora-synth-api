@@ -220,8 +220,8 @@ test('listing returns ordered presets, pagination, and an independent total', as
   const baseline = await pool.query<{ total: string; newest: Date }>(`
     SELECT COUNT(*) AS total,
       date_trunc('milliseconds', GREATEST(MAX(updated_at), NOW())) AS newest
-    FROM presets;
-  `);
+    FROM presets WHERE owner_id = $1;
+  `, ['test-owner']);
   const total = Number(baseline.rows[0].total) + 3;
   const newest = baseline.rows[0].newest.getTime();
   const ids: string[] = [];
@@ -401,5 +401,64 @@ test('rejected PATCH and PUT requests leave the stored preset unchanged', async 
   } finally {
     const deleted = await authenticatedRequest(`/v1/presets/${created.id}`, { method: 'DELETE' });
     assert.equal(deleted.status, 204);
+  }
+});
+
+test('two authenticated owners cannot list, recall, or modify each other presets', async () => {
+  const otherApp = createApp({ secret: 'other-secret', ownerId: 'other-owner' });
+  const createdIds: string[] = [];
+  const clients = [
+    { app, token: 'test-secret', owner: 'test-owner' },
+    { app: otherApp, token: 'other-secret', owner: 'other-owner' },
+  ];
+  try {
+    for (const client of clients) {
+      const response = await client.app.request('/v1/presets', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${client.token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(disposablePreset),
+      });
+      const created = await response.json();
+      if (created.id) createdIds.push(created.id);
+      assert.equal(response.status, 201);
+      const stored = await pool.query('SELECT owner_id FROM presets WHERE id = $1', [created.id]);
+      assert.equal(stored.rows[0].owner_id, client.owner);
+    }
+    for (const [index, client] of clients.entries()) {
+      const ownId = createdIds[index];
+      const foreignId = createdIds[1 - index];
+      const headers = { Authorization: `Bearer ${client.token}`, 'Content-Type': 'application/json' };
+      const list = await client.app.request('/v1/presets', { headers });
+      assert.equal(list.status, 200);
+      const page = await list.json();
+      assert.ok(page.items.some((preset: Preset) => preset.id === ownId));
+      assert.ok(!page.items.some((preset: Preset) => preset.id === foreignId));
+      const count = await pool.query('SELECT COUNT(*) AS total FROM presets WHERE owner_id = $1', [client.owner]);
+      assert.equal(page.total, Number(count.rows[0].total));
+      const before = (await pool.query('SELECT * FROM presets WHERE id = $1', [foreignId])).rows;
+      for (const method of ['GET', 'PATCH', 'PUT', 'DELETE']) {
+        const response = await client.app.request(`/v1/presets/${foreignId}`, {
+          method, headers,
+          ...(['PATCH', 'PUT'].includes(method) ? {
+            body: JSON.stringify(method === 'PATCH' ? { name: 'Forbidden rename' } : disposablePreset),
+          } : {}),
+        });
+        assert.equal(response.status, 404, method);
+        assert.deepEqual(await response.json(), {
+          error: { code: 'NOT_FOUND', message: 'Preset not found.' },
+        });
+      }
+      assert.deepEqual((await pool.query('SELECT * FROM presets WHERE id = $1', [foreignId])).rows, before);
+    }
+    for (const [index, client] of clients.entries()) {
+      const own = await client.app.request(`/v1/presets/${createdIds[index]}`, {
+        headers: { Authorization: `Bearer ${client.token}` },
+      });
+      assert.equal(own.status, 200, 'owner must still be able to recall their preset');
+    }
+  } finally {
+    for (const id of createdIds) {
+      await pool.query('DELETE FROM presets WHERE id = $1', [id]);
+    }
   }
 });

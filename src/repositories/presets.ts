@@ -44,10 +44,10 @@ function mapPresetRow(row: PresetRow): Preset {
   };
 }
 
-export async function getPresetById(id: string): Promise<Preset | undefined> {
+export async function getPresetById(id: string, ownerId: string): Promise<Preset | undefined> {
   const results = await pool.query<PresetRow>(
-    `SELECT * FROM presets WHERE id = $1`,
-    [id],
+    `SELECT * FROM presets WHERE id = $1 AND $2 = owner_id`,
+    [id, ownerId],
   );
 
   const row = results.rows[0];
@@ -59,7 +59,7 @@ export async function getPresetById(id: string): Promise<Preset | undefined> {
   return mapPresetRow(row);
 }
 
-export async function createPreset(input: CreatePresetInput): Promise<Preset> {
+export async function createPreset(input: CreatePresetInput, ownerId: string): Promise<Preset> {
   const now = new Date().toISOString();
   const preset: Preset = {
     ...input,
@@ -70,9 +70,9 @@ export async function createPreset(input: CreatePresetInput): Promise<Preset> {
 
   await pool.query(
     `INSERT INTO presets (
-      id, name, schema_version, filter, mood, movement, space, expression, attack, decay, sustain, release, created_at, updated_at
+      id, name, schema_version, filter, mood, movement, space, expression, attack, decay, sustain, release, created_at, updated_at, owner_id
     ) VALUES (
-      $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
+      $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15
     )`,
     [
       preset.id,
@@ -89,6 +89,7 @@ export async function createPreset(input: CreatePresetInput): Promise<Preset> {
       preset.parameters.release,
       preset.createdAt,
       preset.updatedAt,
+      ownerId,
     ],
   );
 
@@ -98,19 +99,20 @@ export async function createPreset(input: CreatePresetInput): Promise<Preset> {
 export async function listPresets(
   limit: number,
   offset: number,
+  ownerId: string,
 ): Promise<PresetList> {
   const results = await pool.query<PresetRow>(
     `
-    SELECT * FROM presets
+    SELECT * FROM presets WHERE owner_id = $3
     ORDER BY updated_at DESC, id ASC
     LIMIT $1 OFFSET $2
   `,
-    [limit, offset],
+    [limit, offset, ownerId],
   );
 
   const countResult = await pool.query<{ total: string }>(`
-    SELECT COUNT(*) AS total FROM presets;
-  `);
+    SELECT COUNT(*) AS total FROM presets WHERE owner_id = $1;
+  `, [ownerId]);
 
   const total = Number(countResult.rows[0].total);
 
@@ -120,14 +122,14 @@ export async function listPresets(
   };
 }
 
-export async function deletePresetById(id: string): Promise<boolean> {
+export async function deletePresetById(id: string, ownerId: string): Promise<boolean> {
   const result = await pool.query(
     `
     DELETE FROM presets
-    WHERE id = $1
+    WHERE id = $1 AND owner_id = $2
     RETURNING id;
     `,
-    [id],
+    [id, ownerId],
   );
 
   return result.rows.length > 0;
@@ -136,15 +138,16 @@ export async function deletePresetById(id: string): Promise<boolean> {
 export async function renamePresetById(
   id: string,
   name: string,
+  ownerId: string,
 ): Promise<Preset | undefined> {
   const result = await pool.query<PresetRow>(
     `
     UPDATE presets
     SET name = $1, updated_at = NOW()
-    WHERE id = $2
+    WHERE id = $2 AND owner_id = $3
     RETURNING *;
     `,
-    [name, id],
+    [name, id, ownerId],
   );
 
   const row = result.rows[0];
@@ -159,6 +162,7 @@ export async function renamePresetById(
 export async function updatePresetById(
   id: string,
   input: CreatePresetInput,
+  ownerId: string,
 ): Promise<Preset | undefined> {
   const result = await pool.query<PresetRow>(
     `
@@ -176,7 +180,7 @@ export async function updatePresetById(
       sustain = $10,
       release = $11,
       updated_at = NOW()
-    WHERE id = $1
+    WHERE id = $1 AND owner_id = $13
     RETURNING *;
     `,
     [
@@ -192,6 +196,7 @@ export async function updatePresetById(
       input.parameters.sustain,
       input.parameters.release,
       input.schemaVersion,
+      ownerId,
     ],
   );
 

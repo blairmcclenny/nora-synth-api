@@ -1,6 +1,6 @@
 # Next learning task: authentication and preset ownership
 
-Updated October 15, 2026.
+Updated October 16, 2026.
 
 ## Completed persistence exercises
 
@@ -77,9 +77,24 @@ HTTP tests supply fake credentials, including persistence tests. All 87 unit/HTT
 tests, 17 database tests, typecheck, and build passed. Work is on
 `codex/protect-preset-routes`.
 
-Next step: migrate presets to explicit owners and scope repository operations to
-the trusted request identity. Existing presets must be assigned explicitly to
-the MVP owner. Authentication alone currently protects a shared library.
+Current exercise, October 16: `codex/preset-ownership`.
+
+- Added migration 002 with explicit legacy-owner backfill through `AUTH_OWNER_ID`,
+  a required owner column, and an index for owner-scoped listing.
+- Create, list/count, rename, replace, and delete use the trusted context owner.
+- Updated repository tests and manual scripts; added HTTP two-owner isolation and
+  migration rollback/preservation tests.
+- Applied migration only to `nora_synth_test`, assigning legacy test rows to
+  `test-owner`. Development migration is still pending.
+- User completed the learning slice: `getPresetById` matches both preset ID
+  and owner ID using bound SQL parameters.
+- All 87 unit/HTTP tests, 19 database tests, typecheck, and build pass.
+- Next: apply the development migration with the chosen stable owner identity,
+  then document the authenticated API contract in OpenAPI.
+
+Working approach: the user writes one focused learning slice, while the assistant
+implements supporting work. Leave the slice untouched until the user requests
+review or asks for the answer.
 
 Then implement in small steps:
 

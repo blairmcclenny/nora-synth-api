@@ -101,6 +101,14 @@ mismatch stops for investigation. The temporary reference is dropped, and the
 initial migration is never rerun against the existing table. Subsequent pending
 migrations still execute normally.
 
+The ownership migration (`002_add_preset_owners.sql`) adds a required owner ID
+and an index for owner-scoped listing. Before applying it to a database with
+existing presets, set `AUTH_OWNER_ID` to the stable identity that should own
+those records. The runner passes this value into the migration transaction.
+Without an explicit identity, migration of existing records rolls back. Fresh,
+empty databases can apply it without a backfill identity. No owner default is
+retained: new presets must always have an explicit server-supplied owner.
+
 Keep applied SQL files unchanged and add a new numbered migration for each
 schema change. The runner rejects missing applied files but does not checksum
 file contents. Migration files must contain SQL without their own transaction
@@ -137,7 +145,7 @@ Expect HTTP 200 and `{"service":"nora-synth-api","status":"ok"}`. The health rou
 | PUT | `/v1/presets/:id` | Replace a complete preset | 200, full preset |
 | DELETE | `/v1/presets/:id` | Delete a preset by UUID | 204, no response body |
 
-Renaming and complete preset replacement with PUT are supported. PUT accepts the same complete body as POST and returns 200, or 404 for a missing preset. Every preset endpoint requires `Authorization: Bearer <AUTH_SECRET>`. The server maps this secret to the stable `AUTH_OWNER_ID`; keep that ID unchanged when rotating the secret. Missing or invalid credentials return a generic JSON 401 with `UNAUTHORIZED` before validation or database access. `/health` remains public. Presets still share one library until the ownership migration is implemented.
+Renaming and complete preset replacement with PUT are supported. PUT accepts the same complete body as POST and returns 200, or 404 for a missing preset. Every preset endpoint requires `Authorization: Bearer <AUTH_SECRET>`. The server maps this secret to the stable `AUTH_OWNER_ID`; keep that ID unchanged when rotating the secret. Missing or invalid credentials return a generic JSON 401 with `UNAUTHORIZED` before validation or database access. `/health` remains public. Every preset operation, including listing and its total count, is scoped to the trusted owner ID; ownership never comes from the request body. Inaccessible presets return 404.
 
 ### Save a preset
 
