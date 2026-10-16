@@ -462,3 +462,34 @@ test('two authenticated owners cannot list, recall, or modify each other presets
     }
   }
 });
+
+test('rotating a credential preserves access for the same stable owner', async () => {
+  const rotated = createApp({ secret: 'rotated-test-secret', ownerId: 'test-owner' });
+  let id: string | undefined;
+  try {
+    const response = await authenticatedRequest('/v1/presets', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(disposablePreset),
+    });
+    const created = await response.json();
+    id = created.id;
+    assert.equal(response.status, 201);
+    const recalled = await rotated.request(`/v1/presets/${id}`, {
+      headers: { Authorization: 'Bearer rotated-test-secret' },
+    });
+    assert.equal(recalled.status, 200);
+    assert.deepEqual(await recalled.json(), created);
+    const stale = await rotated.request(`/v1/presets/${id}`, {
+      headers: { Authorization: 'Bearer test-secret' },
+    });
+    assert.equal(stale.status, 401);
+    const deleted = await rotated.request(`/v1/presets/${id}`, {
+      method: 'DELETE',
+      headers: { Authorization: 'Bearer rotated-test-secret' },
+    });
+    assert.equal(deleted.status, 204);
+  } finally {
+    if (id) await pool.query('DELETE FROM presets WHERE id = $1', [id]);
+  }
+});
