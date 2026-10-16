@@ -147,6 +147,20 @@ Expect HTTP 200 and `{"service":"nora-synth-api","status":"ok"}`. The health rou
 
 Renaming and complete preset replacement with PUT are supported. PUT accepts the same complete body as POST and returns 200, or 404 for a missing preset. Every preset endpoint requires `Authorization: Bearer <AUTH_SECRET>`. The server maps this secret to the stable `AUTH_OWNER_ID`; keep that ID unchanged when rotating the secret. Missing or invalid credentials return a generic JSON 401 with `UNAUTHORIZED` before validation or database access. `/health` remains public. Every preset operation, including listing and its total count, is scoped to the trusted owner ID; ownership never comes from the request body. Inaccessible presets return 404.
 
+### Ownership and secret rotation
+
+`AUTH_OWNER_ID` identifies the owner in storage. Keep it stable: changing it makes
+the server access a different library; it does not transfer existing presets.
+To rotate credentials, replace only `AUTH_SECRET` and restart the server. The old
+secret then returns 401, while the new secret retains access to the same presets.
+The current server supports one configured identity at a time; two-identity tests
+use separate app instances sharing the same test database.
+
+POST, PUT, and PATCH reject caller-supplied `ownerId` fields. Preset responses
+keep the existing public shape, without exposing an owner field. Reads and writes
+for another owner's preset return the same 404 envelope as a missing preset.
+Listing and its total count include only the authenticated owner's records.
+
 ### Save a preset
 
 The curl examples assume `AUTH_SECRET` is exported in your shell. The server reads `.env`, but curl does not load it automatically.
@@ -326,9 +340,9 @@ API lessons.
 - [x] Verify rejected updates leave persisted presets unchanged.
 - [x] Test safe HTTP 500 responses without exposing internal error details.
 - [x] Add a migration runner that tracks and applies pending SQL migrations.
-- [ ] Choose MVP authentication and implement verified caller identity.
-- [ ] Migrate presets to explicit owners and scope every operation to that owner.
-- [ ] Verify two identities cannot access each other's presets.
+- [x] Choose MVP authentication and implement verified caller identity.
+- [x] Add the ownership migration and scope every operation to the authenticated owner.
+- [x] Verify two identities cannot access each other's presets.
 - [ ] Document requests, responses, and errors in an OpenAPI specification.
 - [ ] Validate startup configuration and distinguish database readiness from liveness.
 - [ ] Verify graceful shutdown and persistence across service restarts.

@@ -126,3 +126,18 @@ test('app creation rejects invalid authentication configuration', () => {
     assert.throws(() => createApp({ secret: 'test-secret', ownerId }), /Authentication owner ID/);
   }
 });
+
+for (const method of ['POST', 'PUT', 'PATCH']) {
+  test(`${method} rejects a caller-supplied owner identity before persistence`, async () => {
+    const input = method === 'PATCH' ? { name: 'Rename' } : preset;
+    const response = await authenticatedRequest(
+      method === 'POST' ? '/v1/presets' : `/v1/presets/${id}`,
+      {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...input, ownerId: 'another-owner' }),
+      },
+    );
+    await expectError(response, 400, 'VALIDATION_ERROR');
+  });
+}
