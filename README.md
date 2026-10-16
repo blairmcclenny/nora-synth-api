@@ -346,8 +346,12 @@ API lessons.
 - [ ] Document requests, responses, and errors in an OpenAPI specification.
 - [ ] Validate startup configuration and distinguish database readiness from liveness.
 - [ ] Verify graceful shutdown and persistence across service restarts.
-- [ ] Decide authentication, ownership, and hosting before remote deployment.
+- [ ] Choose API hosting and managed PostgreSQL; configure HTTPS, secrets, and backups.
 - [ ] Document and verify the chosen deployment workflow.
+
+Authentication and ownership are complete, including both local database migrations.
+Next is the OpenAPI specification. For that phase, the user will document one
+endpoint while the assistant implements the shared schemas and remaining contract.
 
 Frontend work comes later: map synth controls to normalized values, then connect
 save, list, and recall to the completed API.

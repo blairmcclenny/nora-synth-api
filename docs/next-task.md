@@ -1,4 +1,4 @@
-# Next learning task: authentication and preset ownership
+# Next learning task: OpenAPI documentation
 
 Updated October 16, 2026.
 
@@ -40,85 +40,69 @@ Updated October 16, 2026.
   schemas, ordered execution, and rollback in disposable test schemas.
 - An advisory lock serializes runners; the build copies SQL files for compiled use.
 
-## Next exercise
+## Completed authentication and ownership
 
-Build toward a private MVP that can eventually support multiple users. The next
-learning section is authentication and preset ownership, followed by deployment.
-Frontend integration remains deferred.
+Authentication and ownership are implemented, merged into `development` and
+`main`, and verified locally as of October 16, 2026.
 
-First, distinguish the two responsibilities:
+- `requireAuth(expectedSecret, ownerId)` verifies Bearer credentials and attaches
+  the stable owner identity to Hono's typed request context only after success.
+- Secrets use equal-length SHA-256 digests and `timingSafeEqual`. Missing,
+  malformed, and incorrect credentials return the generic JSON 401 envelope.
+- `createApp({ secret, ownerId })` takes explicit configuration. The server reads
+  `AUTH_SECRET` and `AUTH_OWNER_ID`; tests use fake credentials.
+- All preset endpoints require authentication before validation or persistence;
+  `/health` remains public.
+- Migration 002 adds a required owner column and an index for owner-scoped listing.
+  Existing records require an explicit owner assignment through `AUTH_OWNER_ID`.
+- Every preset operation and listing total is scoped to the trusted owner.
+  Caller-supplied ownership fields are rejected. Inaccessible presets return 404.
+- Two-owner tests verify isolation. Secret rotation tests prove the stable owner
+  retains access while the old credential is rejected.
+- The user completed the lookup learning slice with bound preset ID and owner ID
+  parameters in `getPresetById`.
+- Both local databases are migrated. The test database uses `test-owner`; all six
+  development presets were assigned to the approved `private-mvp-owner`, with
+  every original field preserved. Repeat migration execution skips applied files.
+- All 90 unit/HTTP tests, 20 database tests, typecheck, and build passed.
 
-- Authentication identifies who is calling the API.
-- Ownership determines which presets that identity can access or change.
+The private MVP supports one configured identity at a time. Multiple real user
+accounts and password storage remain outside this phase. Frontend work is deferred.
 
-Chosen credential flow: a single private secret sent in the Authorization header
-as a Bearer token, mapped on the server to a stable owner identity. Secret rotation
-must not change that identity. Password storage is outside this exercise.
+## Next exercise: document the API contract
 
-### Stopping point: October 14
+Create an OpenAPI specification matching the implemented routes, validation,
+authentication, ownership behavior, responses, and errors.
 
-- `requireAuth(expectedSecret)` returns middleware that verifies Bearer credentials.
-- Missing, malformed, or incorrect credentials return the generic JSON 401 envelope
-  without reaching the route. Valid credentials reach the route.
-- Secrets are compared using equal-length SHA-256 digests and `timingSafeEqual`.
-  Empty or whitespace-containing configured secrets are rejected.
-- Isolated middleware tests use fake credentials, with no database or network port.
-  `npm test` includes these tests; all 80 tests and typecheck passed.
-- The middleware is not yet connected to the preset routes. Runtime secret
-  configuration and trusted owner identity remain to be added.
-- Current branch: `codex/verify-private-credential`, based on the unmerged
-  `codex/auth-preset-ownership` branch. Preserve this dependency until merged.
+Working approach: the user owns one focused learning slice while the assistant
+implements the surrounding work. Leave the user's slice untouched until they
+request review or ask for the answer.
 
-Completed October 15: trusted owner context and runtime route authentication.
-`createApp({ secret, ownerId })` accepts explicit credentials; the server loads
-`AUTH_SECRET` and `AUTH_OWNER_ID`. Both preset route patterns require valid
-credentials before validation or persistence, while `/health` stays public.
-HTTP tests supply fake credentials, including persistence tests. All 87 unit/HTTP
-tests, 17 database tests, typecheck, and build passed. Work is on
-`codex/protect-preset-routes`.
+Proposed user slice: document `GET /v1/presets/{id}`, including its UUID path
+parameter and 200, 400, 401, and 404 responses. The assistant will prepare shared
+schemas, the Bearer security definition, the other endpoints, and validation.
+Explain how the shared references fit together before the user starts.
 
-Current exercise, October 16: `codex/preset-ownership`.
+The specification must cover:
 
-- Added migration 002 with explicit legacy-owner backfill through `AUTH_OWNER_ID`,
-  a required owner column, and an index for owner-scoped listing.
-- Create, list/count, rename, replace, and delete use the trusted context owner.
-- Updated repository tests and manual scripts; added HTTP two-owner isolation and
-  migration rollback/preservation tests.
-- Applied migration to `nora_synth_test` with `test-owner`, then to development
-  with the explicitly approved `private-mvp-owner`. All six development presets
-  retained every original field; repeat migration execution skipped applied files.
-- User completed the learning slice: `getPresetById` matches both preset ID
-  and owner ID using bound SQL parameters.
-- All 90 unit/HTTP tests, 20 database tests, typecheck, and build pass.
-- Added explicit caller-supplied ownership rejection and secret rotation tests.
-- Local ignored `.env` now has a generated secret and `private-mvp-owner` identity.
-  Verified public health, unauthenticated rejection, owner-scoped listing, and
-  authenticated recall of all six migrated development presets.
-- Ownership implementation and local migration are complete.
-- Next: document the authenticated API contract in OpenAPI.
+- Public `/health` and every authenticated preset endpoint.
+- Complete preset data, rename input, pagination, and listing totals.
+- POST's 201 response and `Location` header; DELETE's empty 204 response.
+- Validation, malformed JSON, authentication, missing/inaccessible resources,
+  unsupported media types, and safe internal errors.
+- Server-derived ownership and a stable owner identity across secret rotation.
 
-Working approach: the user writes one focused learning slice, while the assistant
-implements supporting work. Leave the slice untouched until the user requests
-review or asks for the answer.
+## Remaining path to deployment
 
-Then implement in small steps:
-
-1. Verify credentials in middleware and attach a trusted owner identity to requests.
-2. Add an owner identifier through a tracked migration, assigning existing shared
-   presets explicitly to the MVP owner.
-3. Scope create, list, recall, rename, replace, and delete to the authenticated owner.
-   Resolve ownership on the server, not from an untrusted request body.
-4. Verify missing/invalid credentials return 401 and one owner cannot access another
-   owner's presets. Use two test identities even if the MVP serves one person.
-5. Document the credential flow and authenticated contract for future clients.
-
-## Deployment preparation
-
-OpenAPI documentation, startup configuration validation, database readiness,
-graceful shutdown, and restart persistence verification remain open. Complete
-these before remote deployment, alongside the chosen authentication and ownership
-implementation. Choose hosting, configure secrets, apply migrations, and verify
-the hosted API directly without requiring a frontend.
+1. Complete and validate the OpenAPI specification and link it from the README.
+2. Finish startup configuration validation. Authentication settings and a required
+   database URL already have checks; broader runtime configuration remains open.
+3. Add database readiness separately from public liveness.
+4. Verify graceful shutdown, pool cleanup, and persistence across service restarts.
+5. Choose API hosting and managed PostgreSQL, then configure HTTPS, secrets,
+   backups, and the migration workflow.
+6. Deploy and verify authenticated preset operations, readiness, and restart
+   persistence directly against the hosted API. Frontend integration comes later.
 
 Regression checks:
 
