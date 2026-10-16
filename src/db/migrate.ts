@@ -18,6 +18,7 @@ try {
   try {
     const applied = await runMigrations(
       client, new URL('./migrations/', import.meta.url), args.includes('--adopt-existing'),
+      process.env.AUTH_OWNER_ID,
     );
     console.log(`Migration check complete; applied ${applied.length} pending migration(s).`);
   } finally {
