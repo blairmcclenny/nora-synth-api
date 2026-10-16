@@ -84,13 +84,18 @@ Current exercise, October 16: `codex/preset-ownership`.
 - Create, list/count, rename, replace, and delete use the trusted context owner.
 - Updated repository tests and manual scripts; added HTTP two-owner isolation and
   migration rollback/preservation tests.
-- Applied migration only to `nora_synth_test`, assigning legacy test rows to
-  `test-owner`. Development migration is still pending.
+- Applied migration to `nora_synth_test` with `test-owner`, then to development
+  with the explicitly approved `private-mvp-owner`. All six development presets
+  retained every original field; repeat migration execution skipped applied files.
 - User completed the learning slice: `getPresetById` matches both preset ID
   and owner ID using bound SQL parameters.
-- All 87 unit/HTTP tests, 19 database tests, typecheck, and build pass.
-- Next: apply the development migration with the chosen stable owner identity,
-  then document the authenticated API contract in OpenAPI.
+- All 90 unit/HTTP tests, 20 database tests, typecheck, and build pass.
+- Added explicit caller-supplied ownership rejection and secret rotation tests.
+- Local ignored `.env` now has a generated secret and `private-mvp-owner` identity.
+  Verified public health, unauthenticated rejection, owner-scoped listing, and
+  authenticated recall of all six migrated development presets.
+- Ownership implementation and local migration are complete.
+- Next: document the authenticated API contract in OpenAPI.
 
 Working approach: the user writes one focused learning slice, while the assistant
 implements supporting work. Leave the slice untouched until the user requests
