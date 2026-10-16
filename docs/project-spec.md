@@ -1,6 +1,6 @@
 # Synth Preset API
 
-Status: draft specification · Updated October 13, 2026
+Status: draft specification · Updated October 16, 2026
 
 ## Goal
 
@@ -22,7 +22,7 @@ These are starting assumptions, open to revision:
 
 - TypeScript with Hono on Node.js, using npm.
 - JSON REST API under `/v1`.
-- A single shared preset library in the current local prototype. The next phase is a private MVP with authentication and a stable owner identity, designed for eventual multiple users. Decide the credential mechanism and migrate existing records to an explicit owner before remote deployment.
+- A private MVP with a single configured Bearer secret mapped to a stable owner identity. Every preset operation is scoped to that owner. Authentication, ownership, and both local database migrations are implemented; multiple user accounts remain future work.
 - Every parameter is a normalized number from `0` to `1`, inclusive. The synth maps these values to its audio engine. Attack, decay, and release are normalized controls rather than seconds in this draft.
 - No implicit parameter defaults when saving: the client must supply a complete snapshot.
 
@@ -78,9 +78,15 @@ The API stores values without interpreting their sound. Before implementing the 
 | POST | `/v1/presets` | Save a new complete preset | 201, full preset |
 | GET | `/v1/presets` | List saved presets | 200, list envelope |
 | GET | `/v1/presets/:id` | Recall one preset | 200, full preset |
+| PATCH | `/v1/presets/:id` | Rename a preset | 200, full preset |
 | PUT | `/v1/presets/:id` | Replace name and complete parameter snapshot | 200, full preset |
 | DELETE | `/v1/presets/:id` | Delete one preset | 204, no body |
-| GET | `/health` | Report service liveness | 200, `{"status":"ok"}` |
+| GET | `/health` | Report service liveness | 200, `{"service":"nora-synth-api","status":"ok"}` |
+
+All preset endpoints require valid Bearer credentials; `/health` is public. The
+server maps `AUTH_SECRET` to `AUTH_OWNER_ID` and derives ownership from that trusted
+identity. Keep the owner ID stable when rotating the secret. Listing and totals
+include only that owner's presets; inaccessible IDs return 404.
 
 POST returns a `Location` header pointing to the created resource. PUT preserves `id` and `createdAt`, and advances `updatedAt`; it does not create missing resources. Initial update behavior is last successful write wins.
 
@@ -124,7 +130,7 @@ Use a consistent JSON error envelope:
 }
 ```
 
-Return 400 for malformed JSON, invalid IDs, invalid query parameters, or invalid preset data; 404 for missing resources; 415 for unsupported request content types; and 500 for unexpected server errors. Omit internal error details from responses. Failed validation must never change stored data.
+Return 400 for malformed JSON, invalid IDs, invalid query parameters, or invalid preset data; 401 for missing or invalid credentials; 404 for missing or inaccessible resources; 415 for unsupported request content types; and 500 for unexpected server errors. Omit internal error details from responses. Failed validation must never change stored data.
 
 ## Backend structure
 
@@ -145,6 +151,7 @@ Persist each preset in PostgreSQL in a `presets` table with these columns:
 | Columns | PostgreSQL type | Constraints |
 | --- | --- | --- |
 | `id` | UUID | Primary key |
+| `owner_id` | text | NOT NULL; nonempty with no surrounding spaces |
 | `name` | text | NOT NULL |
 | `schema_version` | integer | NOT NULL |
 | `filter`, `mood`, `movement`, `space`, `expression` | double precision, one column per parameter | NOT NULL; each value between 0 and 1 |
@@ -157,7 +164,10 @@ The API continues to group these values inside the `parameters` object in JSON r
 
 Store the complete parameter snapshot atomically. Keep PostgreSQL migrations in source control. A successful save response must follow a committed database write.
 
-Configure the database connection through `DATABASE_URL`. Select the PostgreSQL driver and connection pooling approach in the database lesson, considering the deployment environment.
+The implemented database connection uses `pg` pooling and `DATABASE_URL`. Tracked
+migrations include explicit owner assignment for legacy presets using
+`AUTH_OWNER_ID`. New records require a server-supplied owner; there is no database
+owner default.
 
 ## Main user flow
 
@@ -180,32 +190,30 @@ Configure the database connection through `DATABASE_URL`. Select the PostgreSQL 
 
 ## Scope after MVP
 
-User accounts and private libraries, tags and search, favorites, public sharing, import/export, revision history, and audio previews can follow the core save-and-recall workflow.
+Multiple user accounts, tags and search, favorites, public sharing, import/export, revision history, and audio previews can follow the core save-and-recall workflow.
 
 Explore SQLite separately at a later point; PostgreSQL is the database for this project.
 
 ## Decisions to resolve next
 
-Prioritize authentication, ownership, and hosting. The private MVP should preserve
-a path to multiple users: derive owner identity from verified credentials and
-scope every preset operation to that owner. Engine mappings remain deferred until
+Authentication and private preset ownership are complete. Prioritize API contract
+documentation and deployment preparation. Engine mappings remain deferred until
 frontend integration.
 
-1. Are all nine controls continuous 0–1 values, or do any need physical units or discrete options?
-2. Which deployment environment will host the Node.js service?
-3. Is the preset library personal, shared, or private per user?
-4. What do the macro controls mean, and which synth engine version defines their mapping?
+1. Which deployment environment will host the Node.js service and PostgreSQL?
+2. Are all nine controls continuous 0–1 values, or do any need physical units or discrete options?
+3. What do the macro controls mean, and which synth engine version defines their mapping?
 
 ## Implementation sequence
 
-1. Confirm parameter units and library ownership.
-2. Scaffold Hono and implement schema validation.
-3. Add PostgreSQL connectivity, migrations, and preset CRUD endpoints.
-4. Verify persistence, round-trip values, and error behavior.
-5. Finish missing-resource, rejected-update persistence, and safe server-error tests.
-6. Add tracked migrations and document the implemented contract with OpenAPI.
-7. Validate configuration, distinguish readiness from liveness, and verify shutdown
-   and persistence across service restarts.
-8. Resolve authentication, ownership, and hosting before remote deployment; document
-   and verify the chosen deployment workflow.
-9. Later, build the synth client and connect its save, list, and recall controls.
+Completed: Hono routes, validation, PostgreSQL persistence, tracked migrations,
+HTTP and repository regression tests, Bearer authentication, owner-scoped queries,
+two-owner isolation, secret rotation checks, and both local ownership migrations.
+
+1. Document and validate the implemented contract with OpenAPI.
+2. Finish configuration validation, distinguish readiness from liveness, and verify
+   shutdown and persistence across service restarts.
+3. Choose hosting and PostgreSQL services, configure HTTPS, secrets, and backups,
+   and document the migration and deployment workflow.
+4. Deploy and verify the hosted API directly.
+5. Later, build the synth client and connect its save, list, and recall controls.
