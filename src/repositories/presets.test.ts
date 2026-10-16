@@ -15,6 +15,7 @@ if (databaseUrl.pathname !== '/nora_synth_test') {
 }
 
 process.env.DATABASE_URL = testDatabaseUrl;
+const ownerId = 'repository-test-owner';
 
 const { createPreset, getPresetById, deletePresetById, updatePresetById } = await import('./presets.js');
 const { pool } = await import('../db/pool.js');
@@ -38,10 +39,10 @@ test('a created preset can be read back', async () => {
       sustain: 0.6,
       release: 0.8,
     },
-  });
+  }, ownerId);
 
   try {
-    const retrieved = await getPresetById(created.id);
+    const retrieved = await getPresetById(created.id, ownerId);
 
     assert.ok(retrieved);
     assert.equal(retrieved.name, created.name);
@@ -51,7 +52,7 @@ test('a created preset can be read back', async () => {
     assert.equal(retrieved.createdAt, created.createdAt);
     assert.equal(retrieved.updatedAt, created.updatedAt);
   } finally {
-    await deletePresetById(created.id);
+    await deletePresetById(created.id, ownerId);
   }
 });
 
@@ -70,19 +71,19 @@ test('a preset can be deleted', async () => {
       sustain: 0.6,
       release: 0.8,
     },
-  });
+  }, ownerId);
 
   try {
-    const deleted = await deletePresetById(created.id);
+    const deleted = await deletePresetById(created.id, ownerId);
     assert.equal(deleted, true);
 
-    const retrieved = await getPresetById(created.id);
+    const retrieved = await getPresetById(created.id, ownerId);
     assert.equal(retrieved, undefined);
 
-    const deletedAgain = await deletePresetById(created.id);
+    const deletedAgain = await deletePresetById(created.id, ownerId);
     assert.equal(deletedAgain, false);
   } finally {
-    await deletePresetById(created.id);
+    await deletePresetById(created.id, ownerId);
   }
 });
 
@@ -101,7 +102,7 @@ test('a preset can be updated', async () => {
       sustain: 0.6,
       release: 0.8,
     },
-  });
+  }, ownerId);
 
   try {
     const replacement: CreatePresetInput = {
@@ -120,10 +121,10 @@ test('a preset can be updated', async () => {
       },
     };
 
-    const updated = await updatePresetById(created.id, replacement);
+    const updated = await updatePresetById(created.id, replacement, ownerId);
     assert.ok(updated);
 
-    const retrieved = await getPresetById(created.id);
+    const retrieved = await getPresetById(created.id, ownerId);
     assert.ok(retrieved);
 
     assert.equal(retrieved.name, replacement.name);
@@ -131,6 +132,6 @@ test('a preset can be updated', async () => {
     assert.equal(retrieved.id, created.id);
     assert.equal(retrieved.createdAt, created.createdAt);
   } finally {
-    await deletePresetById(created.id);
+    await deletePresetById(created.id, ownerId);
   }
 });

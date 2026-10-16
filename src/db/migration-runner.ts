@@ -54,6 +54,7 @@ export async function runMigrations(
   client: PoolClient,
   migrationsDir: URL,
   adoptExisting = false,
+  legacyOwnerId?: string,
 ): Promise<string[]> {
   // Hold one connection and a session lock throughout discovery and execution,
   // preventing two runners from selecting the same pending migrations.
@@ -94,6 +95,14 @@ export async function runMigrations(
       const sql = await readFile(new URL(filename, migrationsDir), 'utf8');
       await client.query('BEGIN');
       try {
+        if (legacyOwnerId !== undefined) {
+          if (!legacyOwnerId || legacyOwnerId.trim() !== legacyOwnerId) {
+            throw new Error('Migration owner ID must be nonempty with no surrounding whitespace');
+          }
+          await client.query(
+            "SELECT set_config('nora.migration_owner_id', $1, true)", [legacyOwnerId],
+          );
+        }
         await client.query(sql);
         await client.query(
           'INSERT INTO schema_migrations (filename) VALUES ($1)', [filename],

@@ -48,7 +48,7 @@ export function createApp(config: { secret: string; ownerId: string }) {
       );
     }
 
-    const preset = await getPresetById(result.data);
+    const preset = await getPresetById(result.data, c.get('ownerId'));
 
     if (!preset) {
       return c.json(
@@ -86,7 +86,7 @@ export function createApp(config: { secret: string; ownerId: string }) {
     }),
     async (c) => {
       const { limit, offset } = c.req.valid('query');
-      const { items, total } = await listPresets(limit, offset);
+      const { items, total } = await listPresets(limit, offset, c.get('ownerId'));
 
       return c.json({ items, limit, offset, total }, 200);
     },
@@ -114,7 +114,7 @@ export function createApp(config: { secret: string; ownerId: string }) {
     }),
     async (c) => {
       const input = c.req.valid('json');
-      const preset = await createPreset(input);
+      const preset = await createPreset(input, c.get('ownerId'));
 
       c.header('Location', `/v1/presets/${preset.id}`);
       return c.json(preset, 201);
@@ -136,7 +136,7 @@ export function createApp(config: { secret: string; ownerId: string }) {
       );
     }
 
-    const deleted = await deletePresetById(result.data);
+    const deleted = await deletePresetById(result.data, c.get('ownerId'));
 
     if (!deleted) {
       return c.json(
@@ -189,7 +189,7 @@ export function createApp(config: { secret: string; ownerId: string }) {
       }
 
       const { name } = c.req.valid('json');
-      const preset = await renamePresetById(result.data, name);
+      const preset = await renamePresetById(result.data, name, c.get('ownerId'));
 
       if (!preset) {
         return c.json(
@@ -243,7 +243,7 @@ export function createApp(config: { secret: string; ownerId: string }) {
       }
 
       const input = c.req.valid('json');
-      const preset = await updatePresetById(result.data, input);
+      const preset = await updatePresetById(result.data, input, c.get('ownerId'));
 
       if (!preset) {
         return c.json(

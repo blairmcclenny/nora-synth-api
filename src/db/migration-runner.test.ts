@@ -35,10 +35,10 @@ async function withSchema(run: (client: import('pg').PoolClient) => Promise<void
 
 test('fresh migrations run once and a repeat run skips applied files', async () => {
   await withSchema(async (client) => {
-    assert.deepEqual(await runMigrations(client, migrationsDir), ['001_create_presets.sql']);
+    assert.deepEqual(await runMigrations(client, migrationsDir), ['001_create_presets.sql', '002_add_preset_owners.sql']);
     assert.deepEqual(await runMigrations(client, migrationsDir), []);
     const history = await client.query('SELECT filename, applied_at FROM schema_migrations');
-    assert.equal(history.rows.length, 1);
+    assert.equal(history.rows.length, 2);
     assert.equal(history.rows[0].filename, '001_create_presets.sql');
     assert.ok(history.rows[0].applied_at instanceof Date);
     const table = await client.query("SELECT to_regclass('presets') AS presets");
@@ -54,9 +54,11 @@ test('existing schema requires explicit adoption and retains its records', async
     )`, [randomUUID()]);
     const before = await client.query('SELECT * FROM presets');
     await assert.rejects(runMigrations(client, migrationsDir), /no migration history/);
-    assert.deepEqual(await runMigrations(client, migrationsDir, true), []);
-    assert.deepEqual((await client.query('SELECT * FROM presets')).rows, before.rows);
-    assert.equal((await client.query('SELECT * FROM schema_migrations')).rows.length, 1);
+    assert.deepEqual(await runMigrations(client, migrationsDir, true, 'legacy-owner'), ['002_add_preset_owners.sql']);
+    const after = await client.query('SELECT * FROM presets');
+    assert.deepEqual(after.rows.map(({ owner_id, ...preset }) => preset), before.rows);
+    assert.equal(after.rows[0].owner_id, 'legacy-owner');
+    assert.equal((await client.query('SELECT * FROM schema_migrations')).rows.length, 2);
     assert.deepEqual(await runMigrations(client, migrationsDir), []);
   });
 });
@@ -100,4 +102,26 @@ test('pending files run in order and a failed migration rolls back and stops', a
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
+});
+
+test('ownership backfill requires an explicit owner and rolls back safely without one', async () => {
+  await withSchema(async (client) => {
+    await client.query(initialSql);
+    const id = randomUUID();
+    await client.query(`INSERT INTO presets VALUES (
+      $1, 'Legacy preset', 1, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, NOW(), NOW()
+    )`, [id]);
+    const before = (await client.query('SELECT * FROM presets')).rows;
+    await assert.rejects(runMigrations(client, migrationsDir, true), /null value/);
+    assert.deepEqual((await client.query('SELECT * FROM presets')).rows, before);
+    assert.deepEqual(await runMigrations(client, migrationsDir, false, 'stable-owner'), [
+      '002_add_preset_owners.sql',
+    ]);
+    const owned = (await client.query('SELECT * FROM presets')).rows[0];
+    assert.equal(owned.owner_id, 'stable-owner');
+    const { owner_id, ...preset } = owned;
+    assert.deepEqual(preset, before[0]);
+    await assert.rejects(client.query('UPDATE presets SET owner_id = NULL WHERE id = $1', [id]));
+    await assert.rejects(client.query("UPDATE presets SET owner_id = '' WHERE id = $1", [id]));
+  });
 });
