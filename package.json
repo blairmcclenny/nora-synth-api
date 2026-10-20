@@ -8,18 +8,20 @@
     "typecheck": "tsc --noEmit",
     "build": "tsc && mkdir -p dist/db/migrations && cp src/db/migrations/*.sql dist/db/migrations/",
     "start": "node dist/server.js",
-    "test": "node --import tsx --test src/schemas/*.test.ts src/middleware/*.test.ts src/app.test.ts src/app.errors.test.ts",
+    "test": "node --import tsx --test src/schemas/*.test.ts src/middleware/*.test.ts src/app.test.ts src/app.errors.test.ts src/openapi.test.ts",
     "test:db": "node --import tsx --env-file=.env --test --test-concurrency=1 src/repositories/presets.test.ts src/app.persistence.test.ts src/db/migration-runner.test.ts",
     "db:migrate": "tsx --env-file=.env src/db/migrate.ts",
     "db:migrate:test": "tsx --env-file=.env src/db/migrate.ts --test-db",
-    "openapi:validate": "node scripts/validate-openapi.mjs"
+    "openapi:validate": "node --import tsx scripts/validate-openapi.mjs",
+    "openapi:generate": "node --import tsx scripts/generate-openapi.mjs"
   },
   "engines": {
     "node": ">=24"
   },
   "dependencies": {
     "@hono/node-server": "^2.1.1",
-    "@hono/zod-validator": "^0.9.1",
+    "@hono/zod-openapi": "^1.6.3",
+    "drizzle-orm": "^0.45.4",
     "hono": "^4.13.8",
     "pg": "^8.23.0",
     "zod": "^4.6.5"
@@ -28,6 +30,8 @@
     "@apidevtools/swagger-parser": "^13.1.0",
     "@types/node": "^24.13.5",
     "@types/pg": "^8.23.1",
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1",
     "tsx": "^4.23.13",
     "typescript": "^7.0.2"
   }
