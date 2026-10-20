@@ -1,6 +1,6 @@
 # Nora Synth API
 
-A standalone Hono API for saving, listing, recalling, renaming, and deleting synth presets, built with TypeScript, Node.js, Zod, and PostgreSQL.
+A standalone Hono API for saving, listing, recalling, renaming, and deleting synth presets, built with TypeScript, Node.js, Drizzle ORM, Zod OpenAPI, and PostgreSQL.
 
 ## Local setup
 
@@ -62,6 +62,12 @@ docker exec nora-postgres sh -c 'createdb -U "$POSTGRES_USER" nora_synth_test'
 Use `nora_synth` instead to create a missing development database.
 
 ### Tracked migrations
+
+Drizzle ORM runs preset queries through the existing `pg` pool.
+`src/db/schema.ts` maps the existing table, constraints, and index for typed queries.
+The numbered SQL migrations and their existing runner remain the authority for
+schema changes; keep the Drizzle table definition in sync when adding a migration.
+This ORM migration requires no database changes. Drizzle Kit is not configured.
 
 The migration runner records filenames and application times in
 `schema_migrations`, applies pending `.sql` files in filename order, and skips
@@ -137,6 +143,14 @@ The [OpenAPI 3.1 specification](docs/openapi.json) documents all implemented
 endpoints, request and response schemas, authentication, and errors. Import it
 into an OpenAPI viewer or API client to explore the contract. Validate it locally
 with `npm run openapi:validate` (no server or database required).
+
+The specification is generated from `src/openapi.ts` and the shared Zod schemas
+in `src/schemas/preset.ts`. Edit those sources, then run
+`npm run openapi:generate`; do not edit the JSON artifact by hand. Validation
+checks both OpenAPI structure and whether the artifact matches the sources.
+`OpenAPIHono` uses these same route definitions for request validation. For
+PATCH and PUT, rejection order is authentication, Content-Type, UUID, then body.
+When both UUID and body are invalid, the UUID error takes precedence.
 
 ## Available endpoints
 
@@ -252,7 +266,8 @@ A successful deletion returns HTTP 204 with no response body. Recalling that pre
 | `npm run test:db` | Load `.env` and run repository and HTTP persistence tests against `nora_synth_test` |
 | `npm run db:migrate` | Apply pending development database migrations |
 | `npm run db:migrate:test` | Apply pending test database migrations |
-| `npm run openapi:validate` | Validate the OpenAPI specification and resolve references |
+| `npm run openapi:generate` | Regenerate the OpenAPI JSON artifact from route schemas |
+| `npm run openapi:validate` | Validate OpenAPI structure and check the artifact is current |
 | `npm run typecheck` | Check TypeScript types without generating files |
 | `npm run build` | Compile TypeScript and copy SQL migrations into `dist/` |
 | `npm start` | Run the compiled server; requires `DATABASE_URL`, `AUTH_SECRET`, and `AUTH_OWNER_ID` in the environment |
@@ -310,13 +325,16 @@ to run.
 
 ```text
 src/
-  app.ts                  Routes, validation middleware, and error responses
+  app.ts                  Typed route handlers and shared error responses
+  openapi.ts              Route contracts and OpenAPI generation
   server.ts               HTTP server startup and shutdown
   schemas/preset.ts       Zod schemas for preset data and pagination
   types/preset.ts         Inferred input types and preset result types
-  repositories/presets.ts SQL queries and database-to-JSON mapping
+  repositories/presets.ts Drizzle queries and database-to-JSON mapping
   db/
     pool.ts               PostgreSQL connection pool
+    client.ts             Drizzle client using the existing pool
+    schema.ts             Typed table, constraints, and index
     migrations/           Numbered SQL migrations
     migrate.ts            Migration command
     migration-runner.ts   Transactional migration execution and adoption

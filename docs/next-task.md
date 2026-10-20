@@ -78,7 +78,23 @@ completed the GET-by-ID learning slice, with review of path parameters versus
 request bodies and reusable response references.
 
 Run `npm run openapi:validate` to validate OpenAPI structure and resolve references.
-The specification is maintained manually; update it alongside route changes.
+The specification is generated from `src/openapi.ts` and the shared Zod schemas.
+Run `npm run openapi:generate` after changing those sources; validation fails if
+the committed artifact is stale.
+
+## Completed Drizzle and Zod OpenAPI detour
+
+- Preset CRUD now uses typed Drizzle queries over the existing `pg` pool.
+  `src/db/schema.ts` mirrors the existing database. Numbered SQL migrations and
+  their runner still manage schema changes; no database migration is required.
+- `OpenAPIHono` uses shared request/response schemas and route contracts instead
+  of separate handwritten validation and OpenAPI definitions.
+- The JSON specification is generated and checked for staleness. Contract tests
+  verify examples against generated JSON Schemas, including full preset responses.
+- Authentication and JSON content-type checks run before automatic validation.
+  PATCH and PUT now validate UUID before body when both are invalid.
+- Database errors are wrapped by Drizzle; safe HTTP responses remain generic,
+  while server logs retain the driver error as the wrapper's cause.
 
 ## Next exercise: startup configuration and readiness
 
