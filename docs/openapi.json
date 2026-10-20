@@ -1,0 +1,760 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Nora Synth API",
+    "version": "0.1.0",
+    "description": "Standalone preset API. All preset operations are scoped to the authenticated owner. The opaque Bearer secret maps to a configured stable AUTH_OWNER_ID; rotate AUTH_SECRET while preserving AUTH_OWNER_ID to retain access. Ownership is never accepted from callers or exposed in responses. The current server supports one configured identity at a time."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000",
+      "description": "Local development"
+    }
+  ],
+  "security": [
+    {
+      "BearerAuth": []
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "operationId": "getHealth",
+        "summary": "Report service liveness",
+        "description": "Does not query the database.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Service is running.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/presets": {
+      "get": {
+        "operationId": "listPresets",
+        "summary": "List the authenticated owner’s presets",
+        "description": "Ordered by updated_at descending, then UUID ascending. Total counts only this owner’s records, independently of pagination. Unknown query parameters are rejected.",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of presets; an empty page has items: [].",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PresetList"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/InvalidPagination"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      },
+      "post": {
+        "operationId": "createPreset",
+        "summary": "Save a complete preset",
+        "description": "All nine normalized controls are required. Duplicate names are allowed. Ownership is supplied by the server; ownerId and other unknown fields are rejected.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PresetInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Preset created with a server-generated UUID and timestamps.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Preset"
+                }
+              }
+            },
+            "headers": {
+              "Location": {
+                "description": "Relative URL of the created preset.",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                },
+                "example": "/v1/presets/123e4567-e89b-42d3-a456-426614174000"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/InvalidBody"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          }
+        }
+      }
+    },
+    "/v1/presets/{id}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/PresetId"
+        }
+      ],
+      "get": {
+        "operationId": "getPreset",
+        "summary": "Get a preset by id",
+        "description": "Retrieves a full preset owned by the authenticated caller.",
+        "responses": {
+          "200": {
+            "description": "Preset retrieved.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Preset"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/InvalidId"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      },
+      "patch": {
+        "operationId": "renamePreset",
+        "summary": "Rename an owned preset",
+        "description": "Updates name and updatedAt while preserving all other fields. Does not create missing presets.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RenameInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Renamed preset.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Preset"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/InvalidBody"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "put": {
+        "operationId": "replacePreset",
+        "summary": "Replace a complete owned preset",
+        "description": "Replaces name, schemaVersion, and all nine parameters. Preserves id and createdAt; updates updatedAt. Does not create missing presets.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PresetInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Replaced preset.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Preset"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/InvalidBody"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deletePreset",
+        "summary": "Delete an owned preset",
+        "description": "Subsequent recall or deletion returns 404.",
+        "responses": {
+          "204": {
+            "description": "Deleted successfully; no response body."
+          },
+          "400": {
+            "$ref": "#/components/responses/InvalidId"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Opaque configured AUTH_SECRET, supplied as Authorization: Bearer <secret>."
+      }
+    },
+    "parameters": {
+      "PresetId": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "description": "UUID identifying a preset.",
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
+      }
+    },
+    "schemas": {
+      "SynthParameters": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "filter",
+          "mood",
+          "movement",
+          "space",
+          "expression",
+          "attack",
+          "decay",
+          "sustain",
+          "release"
+        ],
+        "properties": {
+          "filter": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "mood": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "movement": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "space": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "expression": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "attack": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "decay": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "sustain": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "release": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        }
+      },
+      "PresetInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "schemaVersion",
+          "parameters"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "description": "Trimmed before validation; must contain 1–100 characters after trimming."
+          },
+          "schemaVersion": {
+            "type": "integer",
+            "const": 1
+          },
+          "parameters": {
+            "$ref": "#/components/schemas/SynthParameters"
+          }
+        },
+        "examples": [
+          {
+            "name": "Soft Motion",
+            "schemaVersion": 1,
+            "parameters": {
+              "filter": 0.5,
+              "mood": 0.5,
+              "movement": 0.5,
+              "space": 0.5,
+              "expression": 0.5,
+              "attack": 0.5,
+              "decay": 0.5,
+              "sustain": 0.5,
+              "release": 0.5
+            }
+          }
+        ]
+      },
+      "RenameInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "description": "Trimmed before validation; must contain 1–100 characters after trimming."
+          }
+        },
+        "examples": [
+          {
+            "name": "Soft Motion II"
+          }
+        ]
+      },
+      "Preset": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "name",
+          "schemaVersion",
+          "parameters",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "description": "Trimmed before validation; must contain 1–100 characters after trimming."
+          },
+          "schemaVersion": {
+            "type": "integer",
+            "const": 1
+          },
+          "parameters": {
+            "$ref": "#/components/schemas/SynthParameters"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "examples": [
+          {
+            "id": "123e4567-e89b-42d3-a456-426614174000",
+            "name": "Soft Motion",
+            "schemaVersion": 1,
+            "parameters": {
+              "filter": 0.5,
+              "mood": 0.5,
+              "movement": 0.5,
+              "space": 0.5,
+              "expression": 0.5,
+              "attack": 0.5,
+              "decay": 0.5,
+              "sustain": 0.5,
+              "release": 0.5
+            },
+            "createdAt": "2026-10-20T12:00:00.000Z",
+            "updatedAt": "2026-10-20T12:00:00.000Z"
+          }
+        ]
+      },
+      "PresetList": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "items",
+          "limit",
+          "offset",
+          "total"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Preset"
+            }
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "examples": [
+          {
+            "items": [
+              {
+                "id": "123e4567-e89b-42d3-a456-426614174000",
+                "name": "Soft Motion",
+                "schemaVersion": 1,
+                "parameters": {
+                  "filter": 0.5,
+                  "mood": 0.5,
+                  "movement": 0.5,
+                  "space": 0.5,
+                  "expression": 0.5,
+                  "attack": 0.5,
+                  "decay": 0.5,
+                  "sustain": 0.5,
+                  "release": 0.5
+                },
+                "createdAt": "2026-10-20T12:00:00.000Z",
+                "updatedAt": "2026-10-20T12:00:00.000Z"
+              }
+            ],
+            "limit": 50,
+            "offset": 0,
+            "total": 1
+          }
+        ]
+      },
+      "Error": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "code",
+              "message"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "VALIDATION_ERROR",
+                  "INVALID_JSON",
+                  "UNAUTHORIZED",
+                  "NOT_FOUND",
+                  "UNSUPPORTED_MEDIA_TYPE",
+                  "INTERNAL_ERROR"
+                ]
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "path",
+                    "message"
+                  ],
+                  "properties": {
+                    "path": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "Health": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "service",
+          "status"
+        ],
+        "properties": {
+          "service": {
+            "type": "string",
+            "const": "nora-synth-api"
+          },
+          "status": {
+            "type": "string",
+            "const": "ok"
+          }
+        }
+      }
+    },
+    "responses": {
+      "Unauthorized": {
+        "description": "Missing, malformed, or incorrect credentials. Authentication precedes validation and persistence.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "error": {
+                "code": "UNAUTHORIZED",
+                "message": "Valid credentials are required."
+              }
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "Preset does not exist or belongs to another owner.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "error": {
+                "code": "NOT_FOUND",
+                "message": "Preset not found."
+              }
+            }
+          }
+        }
+      },
+      "InternalError": {
+        "description": "Unexpected server error; internal details are never exposed.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "error": {
+                "code": "INTERNAL_ERROR",
+                "message": "An unexpected error occurred."
+              }
+            }
+          }
+        }
+      },
+      "UnsupportedMediaType": {
+        "description": "Missing or unsupported Content-Type. Use application/json; charset parameters are accepted.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "error": {
+                "code": "UNSUPPORTED_MEDIA_TYPE",
+                "message": "Content-Type must be application/json."
+              }
+            }
+          }
+        }
+      },
+      "InvalidId": {
+        "description": "Invalid UUID path parameter.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "error": {
+                "code": "VALIDATION_ERROR",
+                "message": "Preset ID must be a valid UUID."
+              }
+            }
+          }
+        }
+      },
+      "InvalidBody": {
+        "description": "Invalid body or UUID returns VALIDATION_ERROR. Body validation includes details with field paths and messages. Malformed JSON returns INVALID_JSON. Authentication is checked first, then Content-Type and body, then UUID for PATCH and PUT.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "examples": {
+              "invalidBody": {
+                "value": {
+                  "error": {
+                    "code": "VALIDATION_ERROR",
+                    "message": "Preset contains invalid values.",
+                    "details": [
+                      {
+                        "path": "name",
+                        "message": "Name must contain at least one character."
+                      }
+                    ]
+                  }
+                }
+              },
+              "invalidJson": {
+                "value": {
+                  "error": {
+                    "code": "INVALID_JSON",
+                    "message": "Request body must contain valid JSON."
+                  }
+                }
+              },
+              "invalidId": {
+                "value": {
+                  "error": {
+                    "code": "VALIDATION_ERROR",
+                    "message": "Preset ID must be a valid UUID."
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "InvalidPagination": {
+        "description": "Invalid limit, offset, or unknown query parameter. Returns VALIDATION_ERROR with details containing field paths and messages.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "error": {
+                "code": "VALIDATION_ERROR",
+                "message": "Invalid limit or offset values.",
+                "details": [
+                  {
+                    "path": "limit",
+                    "message": "Limit must be between 1 and 100."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

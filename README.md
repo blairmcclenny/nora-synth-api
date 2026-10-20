@@ -133,6 +133,11 @@ curl -i "http://localhost:3000/health"
 
 Expect HTTP 200 and `{"service":"nora-synth-api","status":"ok"}`. The health route reports service liveness; it does not query the database. `DATABASE_URL` is still required at application startup.
 
+The [OpenAPI 3.1 specification](docs/openapi.json) documents all implemented
+endpoints, request and response schemas, authentication, and errors. Import it
+into an OpenAPI viewer or API client to explore the contract. Validate it locally
+with `npm run openapi:validate` (no server or database required).
+
 ## Available endpoints
 
 | Method | Route | Behavior | Success |
@@ -247,6 +252,7 @@ A successful deletion returns HTTP 204 with no response body. Recalling that pre
 | `npm run test:db` | Load `.env` and run repository and HTTP persistence tests against `nora_synth_test` |
 | `npm run db:migrate` | Apply pending development database migrations |
 | `npm run db:migrate:test` | Apply pending test database migrations |
+| `npm run openapi:validate` | Validate the OpenAPI specification and resolve references |
 | `npm run typecheck` | Check TypeScript types without generating files |
 | `npm run build` | Compile TypeScript and copy SQL migrations into `dist/` |
 | `npm start` | Run the compiled server; requires `DATABASE_URL`, `AUTH_SECRET`, and `AUTH_OWNER_ID` in the environment |
@@ -343,15 +349,15 @@ API lessons.
 - [x] Choose MVP authentication and implement verified caller identity.
 - [x] Add the ownership migration and scope every operation to the authenticated owner.
 - [x] Verify two identities cannot access each other's presets.
-- [ ] Document requests, responses, and errors in an OpenAPI specification.
+- [x] Document requests, responses, and errors in an OpenAPI specification.
 - [ ] Validate startup configuration and distinguish database readiness from liveness.
 - [ ] Verify graceful shutdown and persistence across service restarts.
 - [ ] Choose API hosting and managed PostgreSQL; configure HTTPS, secrets, and backups.
 - [ ] Document and verify the chosen deployment workflow.
 
 Authentication and ownership are complete, including both local database migrations.
-Next is the OpenAPI specification. For that phase, the user will document one
-endpoint while the assistant implements the shared schemas and remaining contract.
+The OpenAPI specification is complete. Next is startup configuration validation
+and database readiness, separate from service liveness.
 
 Frontend work comes later: map synth controls to normalized values, then connect
 save, list, and recall to the completed API.

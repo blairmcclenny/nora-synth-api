@@ -11,7 +11,8 @@
     "test": "node --import tsx --test src/schemas/*.test.ts src/middleware/*.test.ts src/app.test.ts src/app.errors.test.ts",
     "test:db": "node --import tsx --env-file=.env --test --test-concurrency=1 src/repositories/presets.test.ts src/app.persistence.test.ts src/db/migration-runner.test.ts",
     "db:migrate": "tsx --env-file=.env src/db/migrate.ts",
-    "db:migrate:test": "tsx --env-file=.env src/db/migrate.ts --test-db"
+    "db:migrate:test": "tsx --env-file=.env src/db/migrate.ts --test-db",
+    "openapi:validate": "node scripts/validate-openapi.mjs"
   },
   "engines": {
     "node": ">=24"
@@ -24,6 +25,7 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@apidevtools/swagger-parser": "^13.1.0",
     "@types/node": "^24.13.5",
     "@types/pg": "^8.23.1",
     "tsx": "^4.23.13",
