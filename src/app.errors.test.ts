@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { after, mock, test } from 'node:test';
+import { DrizzleQueryError } from 'drizzle-orm';
 
 process.env.DATABASE_URL = 'postgresql://unused:unused@127.0.0.1:1/unused';
 const { createApp } = await import('./app.js');
@@ -43,7 +44,9 @@ for (const method of ['GET', 'POST', 'PATCH', 'PUT', 'DELETE']) {
       assert.deepEqual(await response.json(), {
         error: { code: 'INTERNAL_ERROR', message: 'An unexpected error occurred.' },
       });
-      assert.equal(log.mock.calls[0].arguments[0], internal);
+      const logged = log.mock.calls[0].arguments[0];
+      assert.ok(logged instanceof DrizzleQueryError);
+      assert.equal(logged.cause, internal);
     } finally {
       query.mock.restore();
       log.mock.restore();

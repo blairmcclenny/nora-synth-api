@@ -144,7 +144,7 @@ src/
   db/                     Connection and migrations
 ```
 
-Use one validation schema as the source for request validation and TypeScript types. Hono supports validation middleware, including integration with Zod. See [Hono validation](https://hono.dev/docs/guides/validation) and [routing](https://hono.dev/docs/api/routing).
+Use shared Zod schemas as the source for request validation, TypeScript types, and the generated OpenAPI contract. Routes use Hono’s `@hono/zod-openapi` integration; Drizzle ORM provides typed PostgreSQL queries over the existing `pg` pool. Numbered SQL migrations remain managed by the existing runner. See [Hono validation](https://hono.dev/docs/guides/validation) and [routing](https://hono.dev/docs/api/routing).
 
 Persist each preset in PostgreSQL in a `presets` table with these columns:
 
@@ -196,8 +196,8 @@ Explore SQLite separately at a later point; PostgreSQL is the database for this 
 
 ## Decisions to resolve next
 
-Authentication and private preset ownership are complete. Prioritize API contract
-documentation and deployment preparation. Engine mappings remain deferred until
+Authentication, private preset ownership, and generated API contract
+documentation are complete. Prioritize deployment preparation. Engine mappings remain deferred until
 frontend integration.
 
 1. Which deployment environment will host the Node.js service and PostgreSQL?
@@ -208,12 +208,12 @@ frontend integration.
 
 Completed: Hono routes, validation, PostgreSQL persistence, tracked migrations,
 HTTP and repository regression tests, Bearer authentication, owner-scoped queries,
-two-owner isolation, secret rotation checks, and both local ownership migrations.
+two-owner isolation, secret rotation checks, both local ownership migrations,
+Drizzle ORM queries, and generated OpenAPI documentation through Zod OpenAPI.
 
-1. Document and validate the implemented contract with OpenAPI.
-2. Finish configuration validation, distinguish readiness from liveness, and verify
+1. Finish configuration validation, distinguish readiness from liveness, and verify
    shutdown and persistence across service restarts.
-3. Choose hosting and PostgreSQL services, configure HTTPS, secrets, and backups,
+2. Choose hosting and PostgreSQL services, configure HTTPS, secrets, and backups,
    and document the migration and deployment workflow.
-4. Deploy and verify the hosted API directly.
-5. Later, build the synth client and connect its save, list, and recall controls.
+3. Deploy and verify the hosted API directly.
+4. Later, build the synth client and connect its save, list, and recall controls.

@@ -141,3 +141,15 @@ for (const method of ['POST', 'PUT', 'PATCH']) {
     await expectError(response, 400, 'VALIDATION_ERROR');
   });
 }
+
+for (const method of ['PATCH', 'PUT']) {
+  test(`${method} validates Content-Type, then UUID, then body without querying storage`, async () => {
+    await expectError(await authenticatedRequest('/v1/presets/not-a-uuid', {
+      method, headers: { 'Content-Type': 'text/plain' }, body: '{',
+    }), 415, 'UNSUPPORTED_MEDIA_TYPE');
+    const error = await expectError(await authenticatedRequest('/v1/presets/not-a-uuid', {
+      method, headers: { 'Content-Type': 'application/json' }, body: '{',
+    }), 400, 'VALIDATION_ERROR');
+    assert.equal(error.error.message, 'Preset ID must be a valid UUID.');
+  });
+}
