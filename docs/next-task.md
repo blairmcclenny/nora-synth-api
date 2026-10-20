@@ -1,6 +1,6 @@
-# Next learning task: OpenAPI documentation
+# Next learning task: startup configuration and readiness
 
-Updated October 16, 2026.
+Updated October 20, 2026.
 
 ## Completed persistence exercises
 
@@ -69,44 +69,42 @@ Authentication and ownership are implemented, merged into `development` and
 The private MVP supports one configured identity at a time. Multiple real user
 accounts and password storage remain outside this phase. Frontend work is deferred.
 
-## Next exercise: document the API contract
+## Completed OpenAPI documentation
 
-Create an OpenAPI specification matching the implemented routes, validation,
-authentication, ownership behavior, responses, and errors.
+`docs/openapi.json` documents all seven implemented operations, shared schemas,
+Bearer authentication, server-derived ownership, pagination, and error responses.
+It includes POST's Location header and DELETE's empty 204 response. The user
+completed the GET-by-ID learning slice, with review of path parameters versus
+request bodies and reusable response references.
 
-Working approach: the user owns one focused learning slice while the assistant
-implements the surrounding work. Leave the user's slice untouched until they
-request review or ask for the answer.
+Run `npm run openapi:validate` to validate OpenAPI structure and resolve references.
+The specification is maintained manually; update it alongside route changes.
 
-Proposed user slice: document `GET /v1/presets/{id}`, including its UUID path
-parameter and 200, 400, 401, and 404 responses. The assistant will prepare shared
-schemas, the Bearer security definition, the other endpoints, and validation.
-Explain how the shared references fit together before the user starts.
+## Next exercise: startup configuration and readiness
 
-The specification must cover:
-
-- Public `/health` and every authenticated preset endpoint.
-- Complete preset data, rename input, pagination, and listing totals.
-- POST's 201 response and `Location` header; DELETE's empty 204 response.
-- Validation, malformed JSON, authentication, missing/inaccessible resources,
-  unsupported media types, and safe internal errors.
-- Server-derived ownership and a stable owner identity across secret rotation.
+Read `src/server.ts` and `src/db/pool.ts` before changing startup behavior.
+Authentication settings and a required database URL already have checks.
+Decide which additional runtime settings need validation, then define a separate
+database readiness endpoint while keeping `/health` a public liveness check.
+Start by explaining the difference between a running process and a service that
+can successfully reach its database. Choose a small user-owned learning slice
+before implementing this phase.
 
 ## Remaining path to deployment
 
-1. Complete and validate the OpenAPI specification and link it from the README.
-2. Finish startup configuration validation. Authentication settings and a required
+1. Finish startup configuration validation. Authentication settings and a required
    database URL already have checks; broader runtime configuration remains open.
-3. Add database readiness separately from public liveness.
-4. Verify graceful shutdown, pool cleanup, and persistence across service restarts.
-5. Choose API hosting and managed PostgreSQL, then configure HTTPS, secrets,
+2. Add database readiness separately from public liveness.
+3. Verify graceful shutdown, pool cleanup, and persistence across service restarts.
+4. Choose API hosting and managed PostgreSQL, then configure HTTPS, secrets,
    backups, and the migration workflow.
-6. Deploy and verify authenticated preset operations, readiness, and restart
+5. Deploy and verify authenticated preset operations, readiness, and restart
    persistence directly against the hosted API. Frontend integration comes later.
 
 Regression checks:
 
 ```sh
+npm run openapi:validate
 npm test
 npm run test:db
 npm run typecheck
