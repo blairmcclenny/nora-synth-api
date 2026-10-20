@@ -1,7 +1,5 @@
 import type { z } from 'zod';
-import { createPresetInputSchema, synthParametersSchema, presetSchema } from '../schemas/preset.js';
-
-export type SynthParameters = z.infer<typeof synthParametersSchema>;
+import { createPresetInputSchema, presetSchema } from '../schemas/preset.js';
 
 export type CreatePresetInput = z.infer<typeof createPresetInputSchema>;
 
