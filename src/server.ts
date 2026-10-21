@@ -1,16 +1,16 @@
 import { serve } from '@hono/node-server';
-import { createApp } from './app.js';
+import { runtimeConfig } from './config.js';
 
-const app = createApp({
-  secret: process.env.AUTH_SECRET ?? '',
-  ownerId: process.env.AUTH_OWNER_ID ?? '',
-});
+const config = runtimeConfig(process.env);
+const { createApp } = await import('./app.js');
+
+const app = createApp(config);
 
 // The Node adapter lets our Hono app receive HTTP requests.
 const server = serve(
-  { fetch: app.fetch, hostname: '127.0.0.1', port: 3000 },
+  { fetch: app.fetch, hostname: config.hostname, port: config.port },
   (info) => {
-    console.log(`Nora API listening at http://localhost:${info.port}`);
+    console.log(`Nora API listening at http://${config.hostname}:${info.port}`);
   },
 );
 

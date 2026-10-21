@@ -43,10 +43,12 @@ test('generated operations document authentication, pagination, creation, and em
     Object.values(paths)
       .flatMap((path) => Object.keys(path as object))
       .filter((key) => ['get', 'post', 'patch', 'put', 'delete'].includes(key)).length,
-    7,
+    8,
   );
   assert.deepEqual(document.security, [{ BearerAuth: [] }]);
   assert.deepEqual(paths['/health'].get.security, []);
+  assert.deepEqual(paths['/ready'].get.security, []);
+  assert.ok(paths['/ready'].get.responses['503']);
   assert.equal(document.components.securitySchemes.BearerAuth.scheme, 'bearer');
   const list = paths['/v1/presets'].get;
   assert.equal(
