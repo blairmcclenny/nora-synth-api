@@ -1,4 +1,4 @@
-# Next learning task: graceful shutdown and restart persistence
+# Next learning task: hosting and managed PostgreSQL
 
 Updated October 21, 2026.
 
@@ -107,18 +107,31 @@ the committed artifact is stale.
 - Configuration and readiness tests cover invalid settings, defaults, database
   failure/recovery, and liveness independence. OpenAPI includes both probes.
 
-## Next exercise: graceful shutdown and restart persistence
+## Completed graceful shutdown and restart persistence
 
-Read `src/server.ts` and `src/db/pool.ts`. The server currently closes the HTTP
-listener on SIGINT/SIGTERM but does not explicitly close the database pool.
-Verify request draining, pool cleanup, and persistence across service restarts.
+- SIGINT and SIGTERM stop new connections and drain active HTTP requests before
+  calling pool.end(). Repeated signals do not start duplicate cleanup.
+- Successful cleanup exits 0; cleanup errors or the 10-second shutdown deadline
+  exit 1. The deadline closes remaining HTTP connections before forced exit.
+- A real HTTP test verifies an active response finishes before pool cleanup.
+  Focused tests cover repeated shutdown calls, pool failure, and stalled requests.
+- The database suite starts a real API child process, saves a disposable preset,
+  sends SIGTERM, restarts on the same port, and checks full preset equality.
+  Both SIGTERM and SIGINT exit cleanly. Cleanup deletes only the test-owned record.
+- Validation passed: 118 unit/HTTP tests, 21 database tests, typecheck, build,
+  and OpenAPI validation.
+
+## Next exercise: hosting and managed PostgreSQL
+
+Choose API hosting and managed PostgreSQL, then plan HTTPS, secrets, backups,
+and explicit migration execution. Review costs and deployment requirements with
+the user before provisioning services.
 
 ## Remaining path to deployment
 
-1. Verify graceful shutdown, pool cleanup, and persistence across service restarts.
-2. Choose API hosting and managed PostgreSQL, then configure HTTPS, secrets,
+1. Choose API hosting and managed PostgreSQL, then configure HTTPS, secrets,
    backups, and the migration workflow.
-3. Deploy and verify authenticated preset operations, readiness, and restart
+2. Deploy and verify authenticated preset operations, readiness, and restart
    persistence directly against the hosted API. Frontend integration comes later.
 
 Regression checks:

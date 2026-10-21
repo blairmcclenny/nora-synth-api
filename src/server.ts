@@ -1,8 +1,10 @@
 import { serve } from '@hono/node-server';
 import { runtimeConfig } from './config.js';
+import { createShutdown } from './shutdown.js';
 
 const config = runtimeConfig(process.env);
 const { createApp } = await import('./app.js');
+const { pool } = await import('./db/pool.js');
 
 const app = createApp(config);
 
@@ -14,12 +16,8 @@ const server = serve(
   },
 );
 
-// Release the port when the development server stops or restarts.
+// Repeated signals share one drain-and-cleanup sequence.
+const shutdown = createShutdown(server, pool);
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
-  process.on(signal, () => {
-    server.close((error) => {
-      if (error) console.error(error);
-      process.exit(error ? 1 : 0);
-    });
-  });
+  process.on(signal, shutdown);
 }
