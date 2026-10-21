@@ -47,6 +47,59 @@
         ],
         "additionalProperties": false
       },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "VALIDATION_ERROR",
+                  "INVALID_JSON",
+                  "UNAUTHORIZED",
+                  "NOT_FOUND",
+                  "UNSUPPORTED_MEDIA_TYPE",
+                  "INTERNAL_ERROR",
+                  "NOT_READY"
+                ]
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "path": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "path",
+                    "message"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "additionalProperties": false
+      },
       "PresetList": {
         "type": "object",
         "properties": {
@@ -224,58 +277,6 @@
         ],
         "additionalProperties": false
       },
-      "Error": {
-        "type": "object",
-        "properties": {
-          "error": {
-            "type": "object",
-            "properties": {
-              "code": {
-                "type": "string",
-                "enum": [
-                  "VALIDATION_ERROR",
-                  "INVALID_JSON",
-                  "UNAUTHORIZED",
-                  "NOT_FOUND",
-                  "UNSUPPORTED_MEDIA_TYPE",
-                  "INTERNAL_ERROR"
-                ]
-              },
-              "message": {
-                "type": "string"
-              },
-              "details": {
-                "type": "array",
-                "items": {
-                  "type": "object",
-                  "properties": {
-                    "path": {
-                      "type": "string"
-                    },
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "path",
-                    "message"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            },
-            "required": [
-              "code",
-              "message"
-            ],
-            "additionalProperties": false
-          }
-        },
-        "required": [
-          "error"
-        ],
-        "additionalProperties": false
-      },
       "PresetInput": {
         "type": "object",
         "properties": {
@@ -352,6 +353,55 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Health"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ready": {
+      "get": {
+        "operationId": "getReadiness",
+        "summary": "Check database readiness",
+        "description": "Runs SELECT 1 with bounded database connection and query timeouts. Does not verify migrations.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Database is reachable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "service": {
+                      "type": "string",
+                      "enum": [
+                        "nora-synth-api"
+                      ]
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "ready"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "service",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Database is unavailable. Returns NOT_READY without internal details.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }

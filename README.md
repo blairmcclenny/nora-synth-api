@@ -139,6 +139,21 @@ curl -i "http://localhost:3000/health"
 
 Expect HTTP 200 and `{"service":"nora-synth-api","status":"ok"}`. The health route reports service liveness; it does not query the database. `DATABASE_URL` is still required at application startup.
 
+`GET /ready` is also public. It runs `SELECT 1` and returns HTTP 200 with
+`{"service":"nora-synth-api","status":"ready"}` when PostgreSQL responds.
+Connection or query failures return HTTP 503 with a generic `NOT_READY` error;
+subsequent probes can recover. Connection acquisition and queries each have a
+3-second timeout (a probe can take both intervals). Readiness checks connectivity,
+not migration state. `/health` continues returning 200 during database outages.
+
+Startup validates `DATABASE_URL` as a PostgreSQL URL with a host and database
+name, plus the authentication settings. Optional `HOST` defaults to `127.0.0.1`
+and accepts a hostname or IPv4 address; optional `PORT` defaults to `3000` and
+must be an integer from 1 to 65535. Invalid settings stop startup before listening.
+For hosting, set `HOST=0.0.0.0` when external connections are required. The shared
+pool applies 3-second connection, client query, and server statement timeouts
+to all database operations. No migration runs automatically at startup.
+
 The [OpenAPI 3.1 specification](docs/openapi.json) documents all implemented
 endpoints, request and response schemas, authentication, and errors. Import it
 into an OpenAPI viewer or API client to explore the contract. Validate it locally
@@ -157,6 +172,7 @@ When both UUID and body are invalid, the UUID error takes precedence.
 | Method | Route | Behavior | Success |
 | --- | --- | --- | --- |
 | GET | `/health` | Report service liveness | 200 |
+| GET | `/ready` | Check database connectivity | 200 or 503 |
 | POST | `/v1/presets` | Save a complete preset | 201, full preset and `Location` header |
 | GET | `/v1/presets` | List presets with pagination | 200, `{ items, limit, offset, total }` |
 | GET | `/v1/presets/:id` | Retrieve a preset by UUID | 200, full preset |
@@ -368,14 +384,14 @@ API lessons.
 - [x] Add the ownership migration and scope every operation to the authenticated owner.
 - [x] Verify two identities cannot access each other's presets.
 - [x] Document requests, responses, and errors in an OpenAPI specification.
-- [ ] Validate startup configuration and distinguish database readiness from liveness.
+- [x] Validate startup configuration and distinguish database readiness from liveness.
 - [ ] Verify graceful shutdown and persistence across service restarts.
 - [ ] Choose API hosting and managed PostgreSQL; configure HTTPS, secrets, and backups.
 - [ ] Document and verify the chosen deployment workflow.
 
 Authentication and ownership are complete, including both local database migrations.
-The OpenAPI specification is complete. Next is startup configuration validation
-and database readiness, separate from service liveness.
+Startup configuration validation and database readiness are complete. Next is
+graceful shutdown, pool cleanup, and persistence across service restarts.
 
 Frontend work comes later: map synth controls to normalized values, then connect
 save, list, and recall to the completed API.

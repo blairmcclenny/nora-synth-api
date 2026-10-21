@@ -19,6 +19,7 @@ const errorSchema = z
         'NOT_FOUND',
         'UNSUPPORTED_MEDIA_TYPE',
         'INTERNAL_ERROR',
+        'NOT_READY',
       ]),
       message: z.string(),
       details: z.array(z.strictObject({ path: z.string(), message: z.string() })).optional(),
@@ -68,6 +69,24 @@ export const routes = {
             .openapi('Health'),
         ),
       },
+    },
+  }),
+  ready: createRoute({
+    method: 'get',
+    path: '/ready',
+    operationId: 'getReadiness',
+    summary: 'Check database readiness',
+    description:
+      'Runs SELECT 1 with bounded database connection and query timeouts. Does not verify migrations.',
+    security: [],
+    responses: {
+      200: {
+        description: 'Database is reachable.',
+        content: json(
+          z.strictObject({ service: z.literal('nora-synth-api'), status: z.literal('ready') }),
+        ),
+      },
+      503: error('Database is unavailable. Returns NOT_READY without internal details.'),
     },
   }),
   list: createRoute({

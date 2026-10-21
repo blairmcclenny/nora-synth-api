@@ -1,6 +1,7 @@
 import { OpenAPIHono } from '@hono/zod-openapi';
 import { HTTPException } from 'hono/http-exception';
 import { requireAuth, type AuthEnv } from './middleware/require-auth.js';
+import { pool } from './db/pool.js';
 import { routes } from './openapi.js';
 import {
   createPreset,
@@ -51,6 +52,18 @@ export function createApp(config: { secret: string; ownerId: string }) {
   app.openapi(routes.health, (c) =>
     c.json({ service: 'nora-synth-api' as const, status: 'ok' as const }, 200),
   );
+
+  app.openapi(routes.ready, async (c) => {
+    try {
+      await pool.query('SELECT 1');
+      return c.json({ service: 'nora-synth-api' as const, status: 'ready' as const }, 200);
+    } catch {
+      return c.json(
+        { error: { code: 'NOT_READY' as const, message: 'Database is unavailable.' } },
+        503,
+      );
+    }
+  });
 
   app.openapi(routes.get, async (c) => {
     const preset = await getPresetById(c.req.valid('param').id, c.get('ownerId'));
