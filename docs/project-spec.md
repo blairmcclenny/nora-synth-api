@@ -1,6 +1,6 @@
-# Synth Preset API
+# Nora Synth API
 
-Status: draft specification · Updated October 16, 2026
+Status: private MVP implemented and verified locally; deployment pending · Updated October 21, 2026
 
 ## Goal
 
@@ -16,15 +16,29 @@ and synth integration are deferred until the API lessons are finished.
 - Saving presets is the primary feature.
 - Parameters: filter, mood, movement, space, expression, attack, decay, sustain, release.
 
-## Proposed MVP decisions
+## Current stack and MVP decisions
 
-These are starting assumptions, open to revision:
+| Layer | Implementation |
+| --- | --- |
+| Runtime | Node.js 24+, TypeScript, ES modules, npm; tsx for local development |
+| HTTP | Hono with the Node server adapter and OpenAPIHono from `@hono/zod-openapi` |
+| Validation and contracts | Shared Zod request/response schemas, inferred TypeScript types, generated OpenAPI 3.1 |
+| Persistence | PostgreSQL 18 locally in Docker Desktop, Drizzle ORM queries over a `pg` connection pool |
+| Migrations | Numbered SQL files and a custom transactional migration runner; Drizzle Kit is not configured |
+| Verification | Node's test runner, HTTP and database tests, Swagger Parser, Ajv, TypeScript checks |
 
-- TypeScript with Hono on Node.js, using npm.
-- JSON REST API under `/v1`.
-- A private MVP with a single configured Bearer secret mapped to a stable owner identity. Every preset operation is scoped to that owner. Authentication, ownership, and both local database migrations are implemented; multiple user accounts remain future work.
-- Every parameter is a normalized number from `0` to `1`, inclusive. The synth maps these values to its audio engine. Attack, decay, and release are normalized controls rather than seconds in this draft.
-- No implicit parameter defaults when saving: the client must supply a complete snapshot.
+- JSON REST API under `/v1`, with public operational probes outside that prefix.
+- A private MVP with one configured Bearer secret mapped to a stable owner
+  identity. Every preset operation is scoped to that owner. Multiple real user
+  accounts and password storage remain future work.
+- Every parameter is a normalized number from `0` to `1`, inclusive. These are
+  the implemented API and database constraints. The synth's engine mappings
+  remain to be defined; attack, decay, and release are normalized controls.
+- No implicit parameter defaults when saving: the client supplies a complete snapshot.
+- CRUD, authentication, ownership, generated API documentation, startup validation,
+  readiness, graceful shutdown, and restart persistence are implemented and merged.
+- Hosting, managed PostgreSQL, HTTPS, production secrets, backups, and hosted
+  verification remain pending. Frontend construction remains deferred.
 
 ## Parameter contract
 
@@ -67,7 +81,7 @@ The API stores values without interpreting their sound. Before implementing the 
 
 - Server generates UUID identifiers and UTC timestamps.
 - Names are trimmed, nonempty, and limited to 100 characters. Duplicate names are allowed; IDs identify presets.
-- `schemaVersion` describes the parameter contract, independently of the `/v1` API version. Initially only `1` is accepted.
+- `schemaVersion` describes the parameter contract, independently of the `/v1` API version. Only `1` is currently accepted.
 - Reject unknown fields, missing parameters, numeric strings, nulls, and out-of-range values. Do not silently clamp or coerce values.
 - Creation and replacement requests contain only `name`, `schemaVersion`, and `parameters`.
 
@@ -81,14 +95,15 @@ The API stores values without interpreting their sound. Before implementing the 
 | PATCH | `/v1/presets/:id` | Rename a preset | 200, full preset |
 | PUT | `/v1/presets/:id` | Replace name and complete parameter snapshot | 200, full preset |
 | DELETE | `/v1/presets/:id` | Delete one preset | 204, no body |
-| GET | `/health` | Report service liveness | 200, `{"service":"nora-synth-api","status":"ok"}` |
+| GET | `/health` | Report service liveness without querying PostgreSQL | 200, `{"service":"nora-synth-api","status":"ok"}` |
+| GET | `/ready` | Check database connectivity with `SELECT 1` | 200, `{"service":"nora-synth-api","status":"ready"}`, or 503 |
 
-All preset endpoints require valid Bearer credentials; `/health` is public. The
+All preset endpoints require valid Bearer credentials; `/health` and `/ready` are public. The
 server maps `AUTH_SECRET` to `AUTH_OWNER_ID` and derives ownership from that trusted
 identity. Keep the owner ID stable when rotating the secret. Listing and totals
 include only that owner's presets; inaccessible IDs return 404.
 
-POST returns a `Location` header pointing to the created resource. PUT preserves `id` and `createdAt`, and advances `updatedAt`; it does not create missing resources. Initial update behavior is last successful write wins.
+POST returns a `Location` header pointing to the created resource. PUT preserves `id` and `createdAt`, and advances `updatedAt`; it does not create missing resources. Updates use last successful write wins. PATCH changes only the name and update timestamp, preserving the ID, creation timestamp, schema version, and all parameters.
 
 List query parameters: `limit` (default 50, range 1–100) and `offset` (default 0, nonnegative integer). Return `{"items": [...], "limit": 50, "offset": 0, "total": 1}` with full preset objects, ordered by `updatedAt` descending and then `id` ascending.
 
@@ -116,7 +131,7 @@ List query parameters: `limit` (default 50, range 1–100) and `offset` (default
 
 ### Errors
 
-Use a consistent JSON error envelope:
+Responses use a consistent JSON error envelope (validation messages below are illustrative):
 
 ```json
 {
@@ -130,21 +145,40 @@ Use a consistent JSON error envelope:
 }
 ```
 
-Return 400 for malformed JSON, invalid IDs, invalid query parameters, or invalid preset data; 401 for missing or invalid credentials; 404 for missing or inaccessible resources; 415 for unsupported request content types; and 500 for unexpected server errors. Omit internal error details from responses. Failed validation must never change stored data.
+Return 400 for malformed JSON, invalid IDs, invalid query parameters, or invalid preset data; 401 for missing or invalid credentials; 404 for missing or inaccessible resources; 415 for unsupported request content types; 500 for unexpected server errors; and 503 with `NOT_READY` when the readiness probe cannot reach the database. Omit internal error details from responses. Failed validation must never change stored data.
 
 ## Backend structure
 
 ```text
 src/
-  app.ts                  Hono app and shared error handling
-  server.ts               Runtime-specific startup
-  routes/presets.ts       HTTP endpoints
-  schemas/preset.ts       Request validation and shared types
-  repositories/presets.ts Database reads and writes
-  db/                     Connection and migrations
+  app.ts                  OpenAPIHono route handlers and shared error handling
+  openapi.ts              Route contracts and OpenAPI generation
+  config.ts               Startup environment validation
+  server.ts               HTTP listener and signal registration
+  shutdown.ts             Request draining, pool cleanup, and shutdown deadline
+  middleware/             Bearer authentication and JSON content-type checks
+  schemas/preset.ts       Shared Zod request and response schemas
+  types/preset.ts         Inferred inputs and public preset types
+  repositories/presets.ts Typed Drizzle queries and database-to-JSON mapping
+  db/
+    pool.ts               PostgreSQL pool and timeouts
+    client.ts             Drizzle client over the pool
+    schema.ts             Drizzle table, constraints, and index definitions
+    migrations/           Numbered SQL migrations
+    migrate.ts            Migration command
+    migration-runner.ts   Tracking, locking, adoption, and transactions
 ```
 
-Use shared Zod schemas as the source for request validation, TypeScript types, and the generated OpenAPI contract. Routes use Hono’s `@hono/zod-openapi` integration; Drizzle ORM provides typed PostgreSQL queries over the existing `pg` pool. Numbered SQL migrations remain managed by the existing runner. See [Hono validation](https://hono.dev/docs/guides/validation) and [routing](https://hono.dev/docs/api/routing).
+Shared Zod schemas supply request validation, inferred input types, and the
+OpenAPI contract. Route definitions in `src/openapi.ts` are used by OpenAPIHono
+and generate [openapi.json](openapi.json). Run `npm run openapi:generate` after
+contract changes; `npm run openapi:validate` validates structure and checks that
+the committed artifact matches its sources.
+
+Authentication precedes validation and persistence. JSON content-type checks
+precede body parsing; PATCH and PUT validate the UUID before the body. Ownership
+comes only from the authenticated request context. Caller-supplied ownership
+fields are rejected and owner IDs are omitted from public preset responses.
 
 Persist each preset in PostgreSQL in a `presets` table with these columns:
 
@@ -153,12 +187,12 @@ Persist each preset in PostgreSQL in a `presets` table with these columns:
 | `id` | UUID | Primary key |
 | `owner_id` | text | NOT NULL; nonempty with no surrounding spaces |
 | `name` | text | NOT NULL |
-| `schema_version` | integer | NOT NULL |
+| `schema_version` | integer | NOT NULL; must equal 1 |
 | `filter`, `mood`, `movement`, `space`, `expression` | double precision, one column per parameter | NOT NULL; each value between 0 and 1 |
 | `attack`, `decay`, `sustain`, `release` | double precision, one column per parameter | NOT NULL; each value between 0 and 1 |
 | `created_at`, `updated_at` | timestamp with time zone | NOT NULL |
 
-Use a separate numeric column for each of the nine parameters, with a database CHECK constraint enforcing its range in addition to API validation. The 0–1 ranges remain provisional until parameter units are confirmed.
+Use a separate numeric column for each of the nine parameters, with a database CHECK constraint enforcing its range in addition to API validation. The current schema enforces 0–1; incompatible changes require an explicit versioning and migration decision.
 
 The API continues to group these values inside the `parameters` object in JSON requests and responses. The repository maps that object to and from the individual database columns.
 
@@ -169,7 +203,70 @@ migrations include explicit owner assignment for legacy presets using
 `AUTH_OWNER_ID`. New records require a server-supplied owner; there is no database
 owner default.
 
-## Main user flow
+The owner/update/ID index supports owner-scoped listing. The migration runner
+records applied filenames in `schema_migrations`, skips applied files, and uses
+an advisory lock to serialize runners. Each migration and its tracking entry
+commit atomically or roll back together. Explicit initial-schema adoption checks
+compatibility while preserving existing records. Applied SQL files stay unchanged;
+new changes require new numbered files. Migrations run explicitly, not at startup.
+
+## Runtime and local operation
+
+Local PostgreSQL uses the existing `nora-postgres` Docker container. Development
+uses `nora_synth`; database tests require the separate `nora_synth_test` database
+and clean up only disposable fixtures. Both local databases are migrated. Follow
+the [README setup workflow](../README.md#local-setup) and preserve ignored `.env`
+credentials.
+
+| Setting | Startup requirement or default |
+| --- | --- |
+| `DATABASE_URL` | Required PostgreSQL URL with a host and database name |
+| `AUTH_SECRET` | Required, nonempty, no whitespace |
+| `AUTH_OWNER_ID` | Required stable owner ID, nonempty, no surrounding whitespace |
+| `HOST` | Defaults to `127.0.0.1`; hostname or IPv4 address |
+| `PORT` | Defaults to `3000`; integer from 1 to 65535 |
+| `TEST_DATABASE_URL` | Required by database tests; must target `nora_synth_test` |
+
+Invalid runtime configuration stops startup before listening. `npm run dev`
+loads `.env`; `npm start` runs the compiled server with configuration supplied
+through the environment. `npm run build` compiles TypeScript and copies SQL
+migrations into `dist/db/migrations`.
+
+`/health` reports process liveness even during database outages. `/ready` checks
+connectivity, without checking migration state, and returns a generic 503 on
+failure. Later probes can recover. Pool connection acquisition, client queries,
+and server statements each have a 3-second timeout; connection acquisition and
+query execution can consume separate intervals.
+
+SIGINT and SIGTERM stop new connections, drain active HTTP requests, close the
+pool, and exit 0 after successful cleanup. Repeated signals share one sequence.
+Listener or pool cleanup failures exit 1. A 10-second deadline covers draining
+and pool cleanup; expiry closes remaining HTTP connections and exits 1.
+
+## Verification state
+
+The latest completed implementation passed 118 unit/HTTP tests, 21 database
+tests, typecheck, build, and OpenAPI validation. Coverage includes validation
+boundaries, HTTP rejections and safe errors, CRUD persistence, owner isolation,
+secret rotation, migration adoption and rollback, readiness failure/recovery,
+request draining, repeated shutdown, pool failure, and shutdown deadlines.
+
+The restart test launches the actual API process, saves a preset over HTTP,
+sends SIGTERM, restarts on the same port, and compares the full recalled preset.
+It also verifies a clean SIGINT exit. PostgreSQL remains running during this
+check; hosted deployment and database recovery have not yet been verified.
+
+Regression commands:
+
+```sh
+npm test
+npm run test:db
+npm run typecheck
+npm run build
+npm run openapi:validate
+```
+
+## Planned synth client flow
 
 1. The user adjusts the synth and enters a preset name.
 2. The client sends all nine current values to POST.
@@ -178,15 +275,17 @@ owner default.
 5. On recall, the client fetches the preset and applies all nine values together.
 6. Saving changes to an existing preset uses PUT; “Save as new” uses POST.
 
-## Acceptance criteria
+## Implemented acceptance criteria
 
 - Save and retrieve a preset with all nine values unchanged.
 - Restart the service and retrieve previously saved presets.
-- List, replace, and delete presets by ID.
+- List presets and rename, replace, and delete presets by ID.
 - Accept boundary values 0 and 1; reject incomplete or invalid snapshots without writing.
 - Return consistent errors for malformed requests and missing presets.
 - Preserve creation timestamps during replacement.
 - Keep separate presets even when their names match.
+- Isolate owners and preserve access when rotating credentials for the same owner.
+- Distinguish database readiness from liveness and drain requests before pool cleanup.
 
 ## Scope after MVP
 
@@ -196,8 +295,9 @@ Explore SQLite separately at a later point; PostgreSQL is the database for this 
 
 ## Decisions to resolve next
 
-Authentication, private preset ownership, and generated API contract
-documentation are complete. Prioritize deployment preparation. Engine mappings remain deferred until
+Authentication, private preset ownership, generated API contract documentation,
+startup validation, readiness, and graceful shutdown are complete.
+Prioritize deployment preparation. Engine mappings remain deferred until
 frontend integration.
 
 1. Which deployment environment will host the Node.js service and PostgreSQL?
@@ -209,11 +309,11 @@ frontend integration.
 Completed: Hono routes, validation, PostgreSQL persistence, tracked migrations,
 HTTP and repository regression tests, Bearer authentication, owner-scoped queries,
 two-owner isolation, secret rotation checks, both local ownership migrations,
-Drizzle ORM queries, and generated OpenAPI documentation through Zod OpenAPI.
+Drizzle ORM queries, generated OpenAPI documentation through Zod OpenAPI, startup
+configuration validation, database readiness, graceful shutdown, pool cleanup,
+and HTTP persistence across API process restarts.
 
-1. Finish configuration validation, distinguish readiness from liveness, and verify
-   shutdown and persistence across service restarts.
-2. Choose hosting and PostgreSQL services, configure HTTPS, secrets, and backups,
+1. Choose hosting and PostgreSQL services, configure HTTPS, secrets, and backups,
    and document the migration and deployment workflow.
-3. Deploy and verify the hosted API directly.
-4. Later, build the synth client and connect its save, list, and recall controls.
+2. Deploy and verify the hosted API directly.
+3. Later, build the synth client and connect its save, list, and recall controls.
