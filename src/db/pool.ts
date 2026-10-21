@@ -1,9 +1,9 @@
 import { Pool } from 'pg';
+import { databaseUrl } from '../config.js';
 
-const connectionString = process.env.DATABASE_URL;
-
-if (!connectionString) {
-  throw new Error('DATABASE_URL is required');
-}
-
-export const pool = new Pool({ connectionString });
+export const pool = new Pool({
+  connectionString: databaseUrl(process.env.DATABASE_URL),
+  connectionTimeoutMillis: 3000,
+  query_timeout: 3000,
+  statement_timeout: 3000,
+});

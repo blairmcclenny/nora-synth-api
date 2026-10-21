@@ -1,6 +1,6 @@
-# Next learning task: startup configuration and readiness
+# Next learning task: graceful shutdown and restart persistence
 
-Updated October 20, 2026.
+Updated October 21, 2026.
 
 ## Completed persistence exercises
 
@@ -96,25 +96,29 @@ the committed artifact is stale.
 - Database errors are wrapped by Drizzle; safe HTTP responses remain generic,
   while server logs retain the driver error as the wrapper's cause.
 
-## Next exercise: startup configuration and readiness
+## Completed startup configuration and readiness
 
-Read `src/server.ts` and `src/db/pool.ts` before changing startup behavior.
-Authentication settings and a required database URL already have checks.
-Decide which additional runtime settings need validation, then define a separate
-database readiness endpoint while keeping `/health` a public liveness check.
-Start by explaining the difference between a running process and a service that
-can successfully reach its database. Choose a small user-owned learning slice
-before implementing this phase.
+- Startup validates PostgreSQL URL structure, authentication, HOST, and PORT before
+  listening. Defaults remain 127.0.0.1:3000.
+- Public `/health` remains a database-independent liveness check.
+- Public `/ready` runs SELECT 1 and returns 200 when reachable, or a safe 503
+  NOT_READY envelope on failure. Probes recover when connectivity returns.
+- Pool connection acquisition, query, and statement timeouts are each 3 seconds.
+- Configuration and readiness tests cover invalid settings, defaults, database
+  failure/recovery, and liveness independence. OpenAPI includes both probes.
+
+## Next exercise: graceful shutdown and restart persistence
+
+Read `src/server.ts` and `src/db/pool.ts`. The server currently closes the HTTP
+listener on SIGINT/SIGTERM but does not explicitly close the database pool.
+Verify request draining, pool cleanup, and persistence across service restarts.
 
 ## Remaining path to deployment
 
-1. Finish startup configuration validation. Authentication settings and a required
-   database URL already have checks; broader runtime configuration remains open.
-2. Add database readiness separately from public liveness.
-3. Verify graceful shutdown, pool cleanup, and persistence across service restarts.
-4. Choose API hosting and managed PostgreSQL, then configure HTTPS, secrets,
+1. Verify graceful shutdown, pool cleanup, and persistence across service restarts.
+2. Choose API hosting and managed PostgreSQL, then configure HTTPS, secrets,
    backups, and the migration workflow.
-5. Deploy and verify authenticated preset operations, readiness, and restart
+3. Deploy and verify authenticated preset operations, readiness, and restart
    persistence directly against the hosted API. Frontend integration comes later.
 
 Regression checks:
