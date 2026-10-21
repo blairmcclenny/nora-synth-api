@@ -131,6 +131,20 @@ npm run dev
 
 This command loads `.env`, watches source files, and restarts the server when they change. The server listens on `127.0.0.1:3000`. Stop it with Ctrl+C.
 
+On SIGINT (Ctrl+C) or SIGTERM, the server stops accepting new connections,
+lets active HTTP requests finish, then closes the PostgreSQL pool and exits with
+code 0. Repeated signals share the same shutdown sequence. Listener or pool
+cleanup failures exit with code 1. A 10-second deadline covers both request
+draining and pool cleanup; if it expires, remaining HTTP connections are closed
+and the process exits with code 1. Give the process more than 10 seconds before
+an external supervisor forcibly terminates it. A forced exit may interrupt work.
+
+Presets live in PostgreSQL and survive API process restarts. `npm run test:db`
+verifies this by saving a disposable preset through a real HTTP server, sending
+SIGTERM, restarting on the same port, and comparing the full recalled preset.
+It also checks a clean SIGINT exit and removes only its own fixture. PostgreSQL
+itself stays running during this check.
+
 In another terminal:
 
 ```sh
@@ -320,7 +334,7 @@ npm run typecheck
 ```
 
 `npm test` covers schema validation, health, and HTTP rejection behavior without
-opening a port or querying PostgreSQL. `npm run test:db` requires the Docker
+querying PostgreSQL. The shutdown test opens an ephemeral loopback HTTP port. `npm run test:db` requires the Docker
 database to be running, `TEST_DATABASE_URL` in `.env`, and the initial migration
 applied to `nora_synth_test`. It verifies create/read, complete replacement, and
 delete behavior through the repository, including cleanup of disposable records.
@@ -385,13 +399,13 @@ API lessons.
 - [x] Verify two identities cannot access each other's presets.
 - [x] Document requests, responses, and errors in an OpenAPI specification.
 - [x] Validate startup configuration and distinguish database readiness from liveness.
-- [ ] Verify graceful shutdown and persistence across service restarts.
+- [x] Verify graceful shutdown and persistence across service restarts.
 - [ ] Choose API hosting and managed PostgreSQL; configure HTTPS, secrets, and backups.
 - [ ] Document and verify the chosen deployment workflow.
 
 Authentication and ownership are complete, including both local database migrations.
-Startup configuration validation and database readiness are complete. Next is
-graceful shutdown, pool cleanup, and persistence across service restarts.
+Startup validation, database readiness, graceful shutdown, and restart persistence
+are verified. Next is choosing API hosting and managed PostgreSQL.
 
 Frontend work comes later: map synth controls to normalized values, then connect
 save, list, and recall to the completed API.
