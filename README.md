@@ -371,12 +371,11 @@ src/
     check*.ts             Manual database checks
 ```
 
-## Learning roadmap
+## Roadmap
 
-The main learning goal is to finish a standalone API that a frontend can connect
-to later. Start with a private MVP and design authentication and ownership for
-eventual multiple users. Building the synth client is deferred until after the
-API lessons.
+Complete a standalone preset API with authentication and ownership designed for
+eventual multiple users. The initial MVP supports one configured identity.
+Building the synth client is deferred until the API is deployed and verified.
 
 - [x] Start Hono and respond to a health request.
 - [x] Define a preset and validate requests with Zod.
@@ -412,6 +411,7 @@ save, list, and recall to the completed API.
 
 The API currently enforces normalized 0–1 values, including the envelope controls. Document how those values map to the synth engine before client integration. SQLite remains a future exploration.
 
-See [the next exercise](docs/next-task.md) for current learning progress and guidance.
+See [implementation status and next steps](docs/next-task.md) for completed
+capabilities and deployment priorities.
 
 See [the project specification](docs/project-spec.md) for the broader draft contract, including planned behavior that is not implemented yet.
