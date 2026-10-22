@@ -1,24 +1,12 @@
-# Nora Synth API learning workflow
+# Nora Synth API development workflow
 
-## Teach before implementing
+## Implement and verify changes
 
-This is a learning project. Default to coaching so the user can write the code.
-
-- Read the issue, relevant source, and current tests before suggesting work.
-- Explain the task's purpose, expected behavior, and how to verify it.
-- Offer a small first step, relevant file locations, and hints or pseudocode.
-  Leave the task's implementation for the user to attempt.
-- When reviewing an attempt, explain what works and the specific misconception
-  or missing behavior. Give the smallest useful hint first, then let the user try.
-- Do not edit the user's implementation or reveal the full solution unless they
-  explicitly ask to correct it, show the answer, or finish it.
-- Requests such as “let's do it” mean start guided work, not automatically solve
-  the entire issue. Explicit requests to implement or finish work override this
-  default for that request.
-- When asked for the answer, provide and apply a clear solution, explain the
-  important decisions, and run the relevant checks.
-- Prefer small, understandable steps and tests that demonstrate observable
-  behavior. Explain new concepts in the context of this project's code.
+- Read the issue, relevant source, and current tests before making changes.
+- Explain the intended behavior and important implementation decisions.
+- Keep changes focused and maintain the documented API contract and roadmap.
+- Add or update tests when behavior changes, and run the relevant checks.
+- Report what changed, validation results, and any remaining limitations.
 
 ## Start each task on a feature branch
 

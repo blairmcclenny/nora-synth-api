@@ -6,8 +6,8 @@ Status: private MVP implemented and verified locally; deployment pending · Upda
 
 Build a standalone backend API using Hono that lets a synth save and recall presets. A preset is a named snapshot of all nine synth parameters. The synth client handles audio generation and applies the saved values; the API validates and persists them.
 
-The main learning goal is to complete this standalone API. Frontend construction
-and synth integration are deferred until the API lessons are finished.
+Complete and deploy the standalone API before building the frontend and
+integrating the synth client.
 
 ## Confirmed requirements
 
