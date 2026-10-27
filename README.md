@@ -153,7 +153,8 @@ curl -i "http://localhost:3000/health"
 
 Expect HTTP 200 and `{"service":"nora-synth-api","status":"ok"}`. The health route reports service liveness; it does not query the database. `DATABASE_URL` is still required at application startup.
 
-`GET /ready` is also public. It runs `SELECT 1` and returns HTTP 200 with
+`GET /ready` is also public and requires no authorization header. It runs
+`SELECT 1` and returns HTTP 200 with
 `{"service":"nora-synth-api","status":"ready"}` when PostgreSQL responds.
 Connection or query failures return HTTP 503 with a generic `NOT_READY` error;
 subsequent probes can recover. Connection acquisition and queries each have a
