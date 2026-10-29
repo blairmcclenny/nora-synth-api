@@ -123,8 +123,8 @@ the committed artifact is stale.
 
 The private API is live at <https://nora-synth-api.onrender.com> on Render,
 with PostgreSQL on Neon. Render Free and Neon Free are the selected plans;
-the committed Blueprint requests `plan: free`. Dashboard billing confirmation
-remains an operator check. See the [deployment record](deployment.md#deployment-record).
+the committed Blueprint requests `plan: free`, and the user confirmed both
+dashboard plan labels are Free. See the [deployment record](deployment.md#deployment-record).
 
 - Both tracked migrations applied to the initially empty hosted database.
 - Public HTTPS checks returned 200 for `/health` and `/ready`, and 401 for an
@@ -136,15 +136,21 @@ remains an operator check. See the [deployment record](deployment.md#deployment-
 - Hosted credentials remain in ignored `.env.neon`; local Docker configuration
   remains in `.env`. No local presets were imported into Neon.
 
-## Remaining operational closeout
+## Completed operational closeout
 
-1. Confirm the Render instance type and both providers' usage allowances in their
-   dashboards. Blueprint configuration alone does not verify account billing.
-2. Verify wake-up after at least 15 minutes without API traffic, including
-   readiness and authenticated preset recall. Do not add keep-alive monitoring.
-3. Export a secure logical backup and verify restoration into a separate disposable
-   database before storing valuable presets. No backup or restore drill has yet
-   been completed.
+- Both providers' Free plan labels were confirmed by the user.
+- After 20 reported idle minutes, health recovered in 22.3 seconds and database
+  readiness passed in 0.92 seconds. Unauthenticated access remained rejected;
+  the user reported authenticated list, save, full recall, and cleanup PASS.
+- A direct TLS database export restored into a separate local Docker database.
+  Exact row comparisons passed for both tables, and the public schema matched
+  apart from dump metadata. The hosted source was only read.
+- The backup archive, checksum, and verification record were copied by the user
+  into private durable storage outside the repository. Its exact location is
+  user-managed. The disposable local restore database remains available for review.
+
+The initial private API deployment is complete. Ongoing operations include usage
+reviews, backups before valuable changes, and hosted checks after releases.
 
 Frontend integration and multi-user authentication remain future work. The
 current deployment is a private API for one configured owner.

@@ -26,15 +26,31 @@ the direct URL is `DATABASE_URL_UNPOOLED`, and the pooled URL is `DATABASE_URL`.
 The original `.env` continues to target local Docker PostgreSQL. Never commit
 either file or copy their values into documentation.
 
-Operational closeout still pending:
+Operational closeout completed October 29, 2026:
 
-- Confirm Free instance type in Render's service settings and review both
-  providers' billing/usage dashboards.
-- After at least 15 minutes without API traffic, check wake-up, `/ready`, and
-  authenticated recall. The completed redeploy check does not prove idle recovery.
-- Export a logical backup to secure storage outside the repository and verify
-  restoration into a separate disposable database. Record the date and outcome
-  here after completing the drill; do not overwrite the live database.
+- The user confirmed Render's Compute Plan and Neon's plan are labeled Free.
+  Continue reviewing usage dashboards as part of ongoing operations.
+- After the user reported 20 minutes of inactivity, `/health` returned 200 in
+  22.3 seconds, `/ready` returned 200 in 0.92 seconds, and unauthenticated preset
+  access returned 401. The user then reported PASS for authenticated list, save,
+  full recall, and cleanup after wake-up.
+- A custom-format logical backup was exported through Neon's direct endpoint
+  using full TLS certificate verification and PostgreSQL 18 Docker tools.
+  The Docker image required a public CA bundle for certificate verification.
+- The archive restored successfully into the isolated local database
+  `nora_restore_check_1793314369051`. Every row in `presets` and
+  `schema_migrations` matched the hosted source. The public schema matched after
+  excluding random dump restriction markers and the server-build comment.
+  The live database was only read; local development and test databases were
+  unchanged. The isolated restore database was retained for review.
+- The user confirmed copying `nora-synth.dump`, `SHA256SUMS`, and
+  `VERIFICATION.txt` to private durable storage outside the repository. The exact
+  storage location is user-managed and was not supplied. The original temporary
+  export is not the retained backup location.
+
+All initial operational closeout checks are complete. Create new backups before
+valuable data or schema changes; this drill verifies one snapshot, not scheduled
+backups. Keep credentials and private backup locations out of tracked files.
 
 The following sections remain the setup and release runbook. For subsequent
 releases, apply pending migrations from the intended release checkout, manually
