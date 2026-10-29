@@ -2,6 +2,10 @@
 
 A standalone Hono API for saving, listing, recalling, renaming, and deleting synth presets, built with TypeScript, Node.js, Drizzle ORM, Zod OpenAPI, and PostgreSQL.
 
+For hosted setup with Render Free and Neon Free, follow the
+[deployment guide](docs/deployment.md). The root `render.yaml` defines the API
+service; migrations run separately before manual releases.
+
 ## Local setup
 
 Requires Node.js 24 or newer, npm, and Docker Desktop. Local PostgreSQL runs

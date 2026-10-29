@@ -121,9 +121,12 @@ the committed artifact is stale.
 
 ## Next milestone: hosting and managed PostgreSQL
 
-Choose API hosting and managed PostgreSQL, then plan HTTPS, secrets, backups,
-and explicit migration execution. Review costs and deployment requirements with
-the user before provisioning services.
+Selected Render Free for the API and Neon Free for PostgreSQL. The root
+`render.yaml` and [deployment guide](deployment.md) prepare manual deployment,
+TLS connections, secrets, separate direct-connection migrations, and hosted
+verification. Provider resources have not yet been provisioned. Next: create
+the Neon database, apply migrations, create the Render service, and complete
+the hosted verification checklist, including idle recovery and persistence.
 
 ## Remaining path to deployment
 
