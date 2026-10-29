@@ -77,8 +77,10 @@ the compiled server directly. Render terminates HTTPS at its managed endpoint.
 
 The service uses `/health` for routine liveness checks, avoiding repeated database
 queries that could prevent Neon from suspending. Check `/ready` separately:
-liveness does not prove database connectivity or migration state. The configured
-30-second shutdown allowance exceeds the application's 10-second deadline.
+liveness does not prove database connectivity or migration state. Render Free
+does not support configuring `maxShutdownDelaySeconds`, so the Blueprint omits
+it and uses the platform's shutdown behavior. The application retains its
+10-second graceful shutdown deadline.
 
 ## 4. Verify the hosted release
 
