@@ -1,6 +1,6 @@
 # Nora Synth API
 
-Status: private MVP implemented and verified locally; deployment pending · Updated October 21, 2026
+Status: private MVP deployed and verified · Updated October 29, 2026
 
 ## Goal
 
@@ -37,8 +37,10 @@ integrating the synth client.
 - No implicit parameter defaults when saving: the client supplies a complete snapshot.
 - CRUD, authentication, ownership, generated API documentation, startup validation,
   readiness, graceful shutdown, and restart persistence are implemented and merged.
-- Hosting, managed PostgreSQL, HTTPS, production secrets, backups, and hosted
-  verification remain pending. Frontend construction remains deferred.
+- The API is deployed on Render Free with Neon Free PostgreSQL, HTTPS, and
+  managed environment secrets. Hosted CRUD, redeploy persistence, idle recovery,
+  and a logical backup restore drill passed. See [deployment.md](deployment.md)
+  for the dated verification record. Frontend construction remains deferred.
 
 ## Parameter contract
 
@@ -254,7 +256,9 @@ request draining, repeated shutdown, pool failure, and shutdown deadlines.
 The restart test launches the actual API process, saves a preset over HTTP,
 sends SIGTERM, restarts on the same port, and compares the full recalled preset.
 It also verifies a clean SIGINT exit. PostgreSQL remains running during this
-check; hosted deployment and database recovery have not yet been verified.
+check. Hosted redeploy persistence, idle recovery, and an isolated logical backup
+restore have also been verified; these do not establish high availability or
+scheduled backups.
 
 Regression commands:
 
@@ -293,27 +297,14 @@ Multiple user accounts, tags and search, favorites, public sharing, import/expor
 
 Explore SQLite separately at a later point; PostgreSQL is the database for this project.
 
-## Decisions to resolve next
+## Future decisions
 
-Authentication, private preset ownership, generated API contract documentation,
-startup validation, readiness, and graceful shutdown are complete.
-Prioritize deployment preparation. Engine mappings remain deferred until
-frontend integration.
+The private API deployment is complete. Before client integration, decide:
 
-1. Which deployment environment will host the Node.js service and PostgreSQL?
-2. Are all nine controls continuous 0–1 values, or do any need physical units or discrete options?
-3. What do the macro controls mean, and which synth engine version defines their mapping?
+1. How normalized controls map to physical units or discrete engine options.
+2. What each macro means and which synth engine version defines its mapping.
+3. How the client authenticates without embedding the shared owner secret in a
+   public browser bundle. Multiple real users require a separate identity design.
 
-## Implementation sequence
-
-Completed: Hono routes, validation, PostgreSQL persistence, tracked migrations,
-HTTP and repository regression tests, Bearer authentication, owner-scoped queries,
-two-owner isolation, secret rotation checks, both local ownership migrations,
-Drizzle ORM queries, generated OpenAPI documentation through Zod OpenAPI, startup
-configuration validation, database readiness, graceful shutdown, pool cleanup,
-and HTTP persistence across API process restarts.
-
-1. Choose hosting and PostgreSQL services, configure HTTPS, secrets, and backups,
-   and document the migration and deployment workflow.
-2. Deploy and verify the hosted API directly.
-3. Later, build the synth client and connect its save, list, and recall controls.
+Continue manual releases, explicit migrations, usage reviews, and logical backups
+as described in the [deployment runbook](deployment.md).

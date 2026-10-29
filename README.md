@@ -2,7 +2,8 @@
 
 A standalone Hono API for saving, listing, recalling, renaming, and deleting synth presets, built with TypeScript, Node.js, Drizzle ORM, Zod OpenAPI, and PostgreSQL.
 
-For hosted setup with Render Free and Neon Free, follow the
+The private API is deployed at <https://nora-synth-api.onrender.com>.
+For operation with Render Free and Neon Free, follow the
 [deployment guide](docs/deployment.md). The root `render.yaml` defines the API
 service; migrations run separately before manual releases.
 
@@ -71,7 +72,7 @@ Drizzle ORM runs preset queries through the existing `pg` pool.
 `src/db/schema.ts` maps the existing table, constraints, and index for typed queries.
 The numbered SQL migrations and their existing runner remain the authority for
 schema changes; keep the Drizzle table definition in sync when adding a migration.
-This ORM migration requires no database changes. Drizzle Kit is not configured.
+Drizzle Kit is not configured.
 
 The migration runner records filenames and application times in
 `schema_migrations`, applies pending `.sql` files in filename order, and skips
@@ -96,7 +97,7 @@ npm run db:migrate:test
 The development command uses `DATABASE_URL`. The test command uses
 `TEST_DATABASE_URL` and requires the database name `nora_synth_test`.
 
-Both established local databases have now been adopted. For another existing
+For an existing
 database that has `presets` but no history, use explicit adoption once:
 
 ```sh
@@ -217,11 +218,16 @@ Listing and its total count include only the authenticated owner's records.
 
 ### Save a preset
 
-The curl examples assume `AUTH_SECRET` is exported in your shell. The server reads `.env`, but curl does not load it automatically.
+The curl examples assume `AUTH_SECRET` is exported in your shell. The server
+reads `.env`, but curl does not load it automatically. Headers are supplied through
+standard input to keep the expanded secret out of curl process arguments. Never
+paste a literal secret into these examples, enable shell tracing, or use verbose
+HTTP logging with credentials. Use HTTPS for the hosted API; the HTTP examples
+below target only the local loopback server.
 
 ```sh
 curl -i "http://localhost:3000/v1/presets" \
-  -H "Authorization: Bearer $AUTH_SECRET" \
+  -H @- \
   -H "Content-Type: application/json" \
   -d '{
     "name": "Soft Motion",
@@ -237,7 +243,9 @@ curl -i "http://localhost:3000/v1/presets" \
       "sustain": 0.8,
       "release": 0.5
     }
-  }'
+  }' <<EOF
+Authorization: Bearer $AUTH_SECRET
+EOF
 ```
 
 The response includes a server-generated UUID, `createdAt`, and `updatedAt`. Duplicate names are allowed.
@@ -248,9 +256,11 @@ Names are trimmed and must contain 1–100 characters. `schemaVersion` must be `
 
 ```sh
 curl -i -G "http://localhost:3000/v1/presets" \
-  -H "Authorization: Bearer $AUTH_SECRET" \
+  -H @- \
   --data-urlencode "limit=1" \
-  --data-urlencode "offset=0"
+  --data-urlencode "offset=0" <<EOF
+Authorization: Bearer $AUTH_SECRET
+EOF
 ```
 
 `limit` defaults to 50 and must be an integer from 1 to 100. `offset` defaults to 0 and must be a nonnegative integer. Query values are converted to numbers and validated by Zod middleware.
@@ -261,7 +271,9 @@ To recall a preset, replace `PRESET_ID` with the UUID returned when saving or li
 
 ```sh
 curl -i "http://localhost:3000/v1/presets/PRESET_ID" \
-  -H "Authorization: Bearer $AUTH_SECRET"
+  -H @- <<EOF
+Authorization: Bearer $AUTH_SECRET
+EOF
 ```
 
 Invalid preset data, IDs, or pagination values return HTTP 400 with a `VALIDATION_ERROR` JSON error envelope. Malformed JSON returns 400 with `INVALID_JSON`; a valid but missing preset ID returns 404 with `NOT_FOUND`. Unexpected server errors return 500 with `INTERNAL_ERROR` without exposing internal details.
@@ -272,9 +284,11 @@ Replace `PRESET_ID` with an existing preset's UUID:
 
 ```sh
 curl -i -X PATCH "http://localhost:3000/v1/presets/PRESET_ID" \
-  -H "Authorization: Bearer $AUTH_SECRET" \
+  -H @- \
   -H "Content-Type: application/json" \
-  -d '{"name":"Soft Motion II"}'
+  -d '{"name":"Soft Motion II"}' <<EOF
+Authorization: Bearer $AUTH_SECRET
+EOF
 ```
 
 The body must contain only `name`, which is trimmed and must contain 1–100 characters. A successful rename returns HTTP 200 with the full preset and updates `updatedAt`. The ID, creation timestamp, schema version, and synth parameters remain unchanged.
@@ -287,7 +301,9 @@ Replace `PRESET_ID` with the UUID of a preset you want to delete:
 
 ```sh
 curl -i -X DELETE "http://localhost:3000/v1/presets/PRESET_ID" \
-  -H "Authorization: Bearer $AUTH_SECRET"
+  -H @- <<EOF
+Authorization: Bearer $AUTH_SECRET
+EOF
 ```
 
 A successful deletion returns HTTP 204 with no response body. Recalling that preset or deleting the same ID again returns 404 with `NOT_FOUND`. An invalid UUID returns 400 with `VALIDATION_ERROR`. Errors use the same `{ "error": { "code": "...", "message": "..." } }` envelope as the other routes.
@@ -340,7 +356,7 @@ npm run typecheck
 
 `npm test` covers schema validation, health, and HTTP rejection behavior without
 querying PostgreSQL. The shutdown test opens an ephemeral loopback HTTP port. `npm run test:db` requires the Docker
-database to be running, `TEST_DATABASE_URL` in `.env`, and the initial migration
+database to be running, `TEST_DATABASE_URL` in `.env`, and all tracked migrations
 applied to `nora_synth_test`. It verifies create/read, complete replacement, and
 delete behavior through the repository, including cleanup of disposable records.
 HTTP persistence tests in `src/app.persistence.test.ts` also verify POST creation
@@ -380,7 +396,7 @@ src/
 
 Complete a standalone preset API with authentication and ownership designed for
 eventual multiple users. The initial MVP supports one configured identity.
-Building the synth client is deferred until the API is deployed and verified.
+The private API is deployed and verified; synth client integration is future work.
 
 - [x] Start Hono and respond to a health request.
 - [x] Define a preset and validate requests with Zod.
@@ -404,12 +420,13 @@ Building the synth client is deferred until the API is deployed and verified.
 - [x] Document requests, responses, and errors in an OpenAPI specification.
 - [x] Validate startup configuration and distinguish database readiness from liveness.
 - [x] Verify graceful shutdown and persistence across service restarts.
-- [ ] Choose API hosting and managed PostgreSQL; configure HTTPS, secrets, and backups.
-- [ ] Document and verify the chosen deployment workflow.
+- [x] Choose API hosting and managed PostgreSQL; configure HTTPS, secrets, and backups.
+- [x] Document and verify the chosen deployment workflow.
 
 Authentication and ownership are complete, including both local database migrations.
 Startup validation, database readiness, graceful shutdown, and restart persistence
-are verified. Next is choosing API hosting and managed PostgreSQL.
+are verified. Hosted deployment, idle recovery, and backup restoration are also
+verified; see the deployment guide for the dated results and ongoing operations.
 
 Frontend work comes later: map synth controls to normalized values, then connect
 save, list, and recall to the completed API.
@@ -417,6 +434,6 @@ save, list, and recall to the completed API.
 The API currently enforces normalized 0–1 values, including the envelope controls. Document how those values map to the synth engine before client integration. SQLite remains a future exploration.
 
 See [implementation status and next steps](docs/next-task.md) for completed
-capabilities and deployment priorities.
+capabilities and future work.
 
-See [the project specification](docs/project-spec.md) for the broader draft contract, including planned behavior that is not implemented yet.
+See [the project specification](docs/project-spec.md) for the broader draft contract, and planned client integration.
