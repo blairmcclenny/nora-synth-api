@@ -4,6 +4,43 @@ The API runs on Render; PostgreSQL runs on Neon. This is a private MVP with
 one configured owner. Keep the bearer secret in trusted API clients. A public
 browser application will need a separate authentication design.
 
+## Deployment record
+
+Verified October 29, 2026:
+
+| Item | Recorded configuration or result |
+| --- | --- |
+| API URL | <https://nora-synth-api.onrender.com> |
+| Render service / Blueprint | `nora-synth-api` / `nora-synth` |
+| Release branch | `main`, manual deployments |
+| Selected plans | Render Free (`plan: free` in Blueprint), Neon Free |
+| Neon project / branch | `nora-synth` / `production` |
+| Owner identity | `private-mvp-owner` |
+| Schema | Migrations 001 and 002 applied |
+| Public checks | Health 200, readiness 200, unauthenticated presets 401 |
+| Hosted verification | CRUD and recall completed; user reported persistence and cleanup PASS after manual redeployment |
+
+The bearer secret is stored in the user's password manager and Render's
+environment settings. Hosted database URLs are in ignored `.env.neon`;
+the direct URL is `DATABASE_URL_UNPOOLED`, and the pooled URL is `DATABASE_URL`.
+The original `.env` continues to target local Docker PostgreSQL. Never commit
+either file or copy their values into documentation.
+
+Operational closeout still pending:
+
+- Confirm Free instance type in Render's service settings and review both
+  providers' billing/usage dashboards.
+- After at least 15 minutes without API traffic, check wake-up, `/ready`, and
+  authenticated recall. The completed redeploy check does not prove idle recovery.
+- Export a logical backup to secure storage outside the repository and verify
+  restoration into a separate disposable database. Record the date and outcome
+  here after completing the drill; do not overwrite the live database.
+
+The following sections remain the setup and release runbook. For subsequent
+releases, apply pending migrations from the intended release checkout, manually
+deploy `main`, then repeat hosted verification. For a documentation-only release,
+there are no schema changes to apply.
+
 ## 1. Create the Neon database
 
 Create a Free Neon project, preferably in an AWS US West region near Render's
