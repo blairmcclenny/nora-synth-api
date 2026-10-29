@@ -57,11 +57,12 @@ releases, apply pending migrations from the intended release checkout, manually
 deploy `main`, then repeat hosted verification. For a documentation-only release,
 there are no schema changes to apply.
 
-## 1. Create the Neon database
+## 1. Neon database configuration
 
-Create a Free Neon project, preferably in an AWS US West region near Render's
+For a new environment, create a Free Neon project in an AWS US West region near Render's
 Oregon service. Select PostgreSQL 18 to match local development when available.
-Create a dedicated hosted database for Nora; leave the local Docker databases
+For the existing deployment, reuse the linked project and production database.
+Leave the local Docker databases
 and their `.env` settings unchanged.
 
 From Neon's Connect dialog, save both connection strings securely:
@@ -87,13 +88,17 @@ In a temporary terminal session, read the direct Neon URL without echoing it or
 putting it in shell history (zsh):
 
 ```sh
+(
 read -rs 'DATABASE_URL?Neon direct database URL: '
 printf '\n'
 export DATABASE_URL
 export AUTH_OWNER_ID=private-mvp-owner
 node dist/db/migrate.js
-unset DATABASE_URL AUTH_OWNER_ID
+)
 ```
+
+Run the command unchanged, then paste the direct URL at the hidden prompt. The
+subshell discards its exported values when it exits.
 
 Use the same stable owner ID on Render. For existing data, inspect the database
 before migrating and confirm which owner should receive it. Do not use
@@ -106,12 +111,15 @@ therefore run explicitly from the release checkout before a manual deployment;
 they do not run in the build or on every API wake-up. Future schema changes must
 remain compatible with the running release until the new deployment completes.
 
-## 3. Create the Render service
+## 3. Render service configuration
 
-After the deployment files are merged into `main`, create a Render Blueprint
+The existing service is already provisioned; do not create a duplicate Blueprint.
+For a new environment, after the deployment files are merged into `main`, create a Render Blueprint
 from this repository and use the root `render.yaml`. Review the plan as Free.
 The Blueprint targets `main` and disables automatic deployments so each release
-can be coordinated with migrations. Blueprint creation still triggers an initial
+can be coordinated with migrations. Blueprint Auto Sync is a separate setting:
+set it to No if Blueprint changes must also wait for manual approval.
+Blueprint creation still triggers an initial
 deployment, so complete migrations first.
 
 Enter the prompted secrets in Render:
@@ -122,7 +130,8 @@ Enter the prompted secrets in Render:
 | `AUTH_SECRET` | A long random bearer secret stored in your password manager |
 | `AUTH_OWNER_ID` | The stable owner ID chosen above |
 
-Generate a secret using a password manager. Never paste credentials into source
+Generate a secret using a password manager or `openssl rand -hex 32`. Save its
+output privately; do not substitute the secret into a shell command. Never paste credentials into source
 files, issues, or chat. Keep `AUTH_OWNER_ID` stable when rotating `AUTH_SECRET`.
 Render supplies `PORT`; the Blueprint sets `HOST=0.0.0.0` and Node 24. It builds
 with development dependencies available for TypeScript compilation, then starts
