@@ -1,6 +1,6 @@
 # Implementation status and next steps
 
-Updated October 21, 2026.
+Updated October 29, 2026.
 
 ## Completed persistence verification
 
@@ -119,21 +119,35 @@ the committed artifact is stale.
 - Validation passed: 118 unit/HTTP tests, 21 database tests, typecheck, build,
   and OpenAPI validation.
 
-## Next milestone: hosting and managed PostgreSQL
+## Completed hosting and managed PostgreSQL
 
-Selected Render Free for the API and Neon Free for PostgreSQL. The root
-`render.yaml` and [deployment guide](deployment.md) prepare manual deployment,
-TLS connections, secrets, separate direct-connection migrations, and hosted
-verification. Provider resources have not yet been provisioned. Next: create
-the Neon database, apply migrations, create the Render service, and complete
-the hosted verification checklist, including idle recovery and persistence.
+The private API is live at <https://nora-synth-api.onrender.com> on Render,
+with PostgreSQL on Neon. Render Free and Neon Free are the selected plans;
+the committed Blueprint requests `plan: free`. Dashboard billing confirmation
+remains an operator check. See the [deployment record](deployment.md#deployment-record).
 
-## Remaining path to deployment
+- Both tracked migrations applied to the initially empty hosted database.
+- Public HTTPS checks returned 200 for `/health` and `/ready`, and 401 for an
+  unauthenticated preset request.
+- The hosted verification script exercised authenticated create, recall, list,
+  rename, and replacement before pausing for a manual Render redeployment.
+- The user reported PASS for full preset equality after redeployment, deletion,
+  missing recall, and repeated deletion. The disposable preset was removed.
+- Hosted credentials remain in ignored `.env.neon`; local Docker configuration
+  remains in `.env`. No local presets were imported into Neon.
 
-1. Choose API hosting and managed PostgreSQL, then configure HTTPS, secrets,
-   backups, and the migration workflow.
-2. Deploy and verify authenticated preset operations, readiness, and restart
-   persistence directly against the hosted API. Frontend integration comes later.
+## Remaining operational closeout
+
+1. Confirm the Render instance type and both providers' usage allowances in their
+   dashboards. Blueprint configuration alone does not verify account billing.
+2. Verify wake-up after at least 15 minutes without API traffic, including
+   readiness and authenticated preset recall. Do not add keep-alive monitoring.
+3. Export a secure logical backup and verify restoration into a separate disposable
+   database before storing valuable presets. No backup or restore drill has yet
+   been completed.
+
+Frontend integration and multi-user authentication remain future work. The
+current deployment is a private API for one configured owner.
 
 Regression checks:
 
